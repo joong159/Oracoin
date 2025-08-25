@@ -12,9 +12,9 @@
      crossorigin="anonymous"></script>
     <style>
         body { font-family: 'Noto Sans KR', sans-serif; }
-        .predict-up { color: #22c55e; }
-        .predict-down { color: #ef4444; }
-        .predict-stable { color: #64748b; }
+        .eval-buy { color: #22c55e; }
+        .eval-caution { color: #ef4444; }
+        .eval-neutral { color: #64748b; }
         .control-btn.active { background-color: #3b82f6; color: white; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
         .star-icon { cursor: pointer; transition: color 0.2s, transform 0.2s; }
         .star-icon:hover { transform: scale(1.2); }
@@ -51,7 +51,7 @@
             </button>
 
             <div class="container mx-auto max-w-7xl">
-                <header class="text-center mb-4 relative">
+                <header class="text-center mb-8 relative">
                     <h1 class="text-3xl sm:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500" data-lang-key="main_title">Oracoin</h1>
                     <p class="text-gray-400 text-sm sm:text-base" data-lang-key="main_subtitle">실시간 암호화폐 추세 예측</p>
                     <!-- 언어 선택 -->
@@ -60,14 +60,6 @@
                         <button id="lang-en" class="lang-btn control-btn px-3 py-1 text-sm rounded-md">EN</button>
                     </div>
                 </header>
-
-                <div class="flex justify-center mb-4">
-                    <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-1 flex space-x-1 border border-gray-700">
-                        <button id="btn-1h" class="timeframe-btn control-btn px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700" data-lang-key="time_1h">1시간</button>
-                        <button id="btn-4h" class="timeframe-btn control-btn px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700" data-lang-key="time_4h">4시간</button>
-                        <button id="btn-24h" class="timeframe-btn control-btn px-4 py-2 text-sm font-medium text-gray-300 rounded-md hover:bg-gray-700 active" data-lang-key="time_24h">24시간</button>
-                    </div>
-                </div>
 
                 <div class="bg-gray-800/50 backdrop-blur-sm border border-gray-700 p-4 rounded-xl mb-6 space-y-4 md:space-y-0 md:flex md:items-center md:justify-between">
                     <div class="relative flex-grow md:max-w-xs">
@@ -89,7 +81,10 @@
                 <div id="no-results" class="hidden text-center text-gray-400 py-10 col-span-full"></div>
 
                 <div class="mt-16">
-                    <h2 class="text-3xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500" data-lang-key="news_title">최신 암호화폐 뉴스</h2>
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 inline-block" data-lang-key="news_title">최신 암호화폐 뉴스</h2>
+                        <div id="news-sentiment" class="mt-2 text-lg"></div>
+                    </div>
                     <div id="news-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                 </div>
 
@@ -121,9 +116,9 @@
             modalContent: document.getElementById('modal-content'),
             modalClose: document.getElementById('modal-close'),
             coinListSidebar: document.getElementById('coin-list-sidebar'),
-            timeframeButtons: document.querySelectorAll('.timeframe-btn'),
             limitMessage: document.getElementById('limit-message'),
             newsContainer: document.getElementById('news-container'),
+            newsSentiment: document.getElementById('news-sentiment'),
             langButtons: document.querySelectorAll('.lang-btn'),
         };
 
@@ -139,10 +134,10 @@
             currentSort: { key: 'market_cap_rank', order: 'asc' },
             showWatchlistOnly: false,
             searchTerm: '',
-            activeTimeframe: '24h',
             lang: 'ko',
             currency: 'krw',
             chartInstance: null,
+            newsSentimentScore: 0.5, // 0 to 1
         };
 
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -154,7 +149,6 @@
                 limit_message: "최대 6개까지 추가 가능합니다.",
                 main_title: "Oracoin",
                 main_subtitle: "실시간 암호화폐 추세 예측",
-                time_1h: "1시간", time_4h: "4시간", time_24h: "24시간",
                 search_placeholder: "추가된 코인 검색...",
                 sort_name: "이름순", sort_price: "가격순", sort_change: "변동률순",
                 watchlist: "⭐ 관심 목록",
@@ -163,10 +157,6 @@
                 data_provider: "데이터 제공: ",
                 last_update: "마지막 업데이트: ",
                 loading: "최신 데이터를 불러오는 중입니다...",
-                predict_up: "상승 추세", predict_down: "하락 추세", predict_stable: "보합세",
-                basis_up: "근거: {timeframe} 변동률({change}%)이 {threshold}%를 초과했습니다.",
-                basis_down: "근거: {timeframe} 변동률({change}%)이 -{threshold}% 미만입니다.",
-                basis_stable: "근거: {timeframe} 변동률({change}%)이 -{threshold}% ~ {threshold}% 사이입니다.",
                 modal_price: "현재 가격:", modal_mcap: "시가총액:", modal_vol: "24시간 거래량:",
                 modal_high: "24시간 최고가:", modal_low: "24시간 최저가:",
                 modal_chart_title: "7일 가격 차트", modal_desc_title: "코인 설명", modal_links_title: "공식 링크", modal_website: "웹사이트 방문",
@@ -175,13 +165,17 @@
                 news3_title: "미국 SEC, 암호화폐 규제 관련 새로운 가이드라인 발표", news3_source: "디지털 에셋", news3_time: "1일 전",
                 news4_title: "솔라나 생태계, 밈코인 열풍에 힘입어 급성장", news4_source: "크립토 뉴스", news4_time: "2일 전",
                 disclaimer: "법적 고지: Oracoin에서 제공하는 모든 정보는 정보 제공 목적으로만 사용되며, 투자 조언으로 간주되어서는 안 됩니다. 암호화폐 투자는 원금 손실의 위험을 수반합니다. 모든 투자 결정은 본인의 책임하에 신중하게 이루어져야 합니다.",
+                rsi_title: "RSI (14일)", sma_title: "MA (20일)",
+                overbought: "과매수", oversold: "과매도", neutral: "중립",
+                bullish: "상승 추세", bearish: "하락 추세",
+                sentiment_title: "뉴스 심리: ", sentiment_positive: "긍정적", sentiment_neutral: "중립적", sentiment_negative: "부정적",
+                evaluation_title: "종합 평가", eval_buy: "매수 고려", eval_neutral: "관망", eval_caution: "주의 필요",
             },
             en: {
                 sidebar_title: "Coin List (Top 100)",
                 limit_message: "You can add up to 6 coins.",
                 main_title: "Oracoin",
                 main_subtitle: "Real-Time Crypto Trend Predictor",
-                time_1h: "1H", time_4h: "4H", time_24h: "24H",
                 search_placeholder: "Search added coins...",
                 sort_name: "Name", sort_price: "Price", sort_change: "Change",
                 watchlist: "⭐ Watchlist",
@@ -190,10 +184,6 @@
                 data_provider: "Data provided by: ",
                 last_update: "Last updated: ",
                 loading: "Loading latest data...",
-                predict_up: "Uptrend", predict_down: "Downtrend", predict_stable: "Stable",
-                basis_up: "Basis: {timeframe} change ({change}%) exceeded {threshold}%.",
-                basis_down: "Basis: {timeframe} change ({change}%) is below -{threshold}%.",
-                basis_stable: "Basis: {timeframe} change ({change}%) is between -{threshold}% and {threshold}%.",
                 modal_price: "Current Price:", modal_mcap: "Market Cap:", modal_vol: "24h Volume:",
                 modal_high: "24h High:", modal_low: "24h Low:",
                 modal_chart_title: "7-Day Price Chart", modal_desc_title: "Coin Description", modal_links_title: "Official Links", modal_website: "Visit Website",
@@ -202,6 +192,11 @@
                 news3_title: "US SEC Announces New Guidelines on Crypto Regulation", news3_source: "Digital Asset", news3_time: "1 day ago",
                 news4_title: "Solana Ecosystem Booms, Fueled by Memecoin Frenzy", news4_source: "Crypto News", news4_time: "2 days ago",
                 disclaimer: "Disclaimer: All information provided by Oracoin is for informational purposes only and should not be considered as investment advice. Investing in cryptocurrencies involves the risk of loss. All investment decisions should be made carefully at your own risk.",
+                rsi_title: "RSI (14-Day)", sma_title: "MA (20-Day)",
+                overbought: "Overbought", oversold: "Oversold", neutral: "Neutral",
+                bullish: "Bullish", bearish: "Bearish",
+                sentiment_title: "News Sentiment: ", sentiment_positive: "Positive", sentiment_neutral: "Neutral", sentiment_negative: "Negative",
+                evaluation_title: "Overall Evaluation", eval_buy: "Consider Buying", eval_neutral: "Neutral / Hold", eval_caution: "Caution Needed",
             }
         };
 
@@ -239,25 +234,26 @@
             const price = coin.current_price || 0;
             const T = translations[state.lang];
             
-            let predictionText = '', predictionClass = '', basisText = '', timeframeText = '';
-            const predictionChange = coin.prediction_change ?? change24h;
-            
-            if (state.activeTimeframe === '1h') timeframeText = T.time_1h;
-            else if (state.activeTimeframe === '4h') timeframeText = T.time_4h;
-            else timeframeText = T.time_24h;
+            let evaluationText = '', evaluationColor = '';
+            if (coin.evaluation_score) {
+                if (coin.evaluation_score > 65) { evaluationText = T.eval_buy; evaluationColor = 'eval-buy'; }
+                else if (coin.evaluation_score < 35) { evaluationText = T.eval_caution; evaluationColor = 'eval-caution'; }
+                else { evaluationText = T.eval_neutral; evaluationColor = 'eval-neutral'; }
+            }
 
-            const threshold = state.activeTimeframe === '24h' ? 0.5 : 0.2;
-            const formattedChange = predictionChange.toFixed(2);
-
-            if (predictionChange > threshold) {
-                predictionText = T.predict_up; predictionClass = 'predict-up';
-                basisText = T.basis_up.replace('{timeframe}', timeframeText).replace('{change}', formattedChange).replace('{threshold}', threshold);
-            } else if (predictionChange < -threshold) {
-                predictionText = T.predict_down; predictionClass = 'predict-down';
-                basisText = T.basis_down.replace('{timeframe}', timeframeText).replace('{change}', formattedChange).replace('{threshold}', threshold);
-            } else {
-                predictionText = T.predict_stable; predictionClass = 'predict-stable';
-                basisText = T.basis_stable.replace('{timeframe}', timeframeText).replace('{change}', formattedChange).replace('{threshold}', threshold);
+            let rsiHtml = '', smaHtml = '';
+            if (coin.rsi) {
+                let rsiStatus, rsiColor;
+                if (coin.rsi > 70) { rsiStatus = T.overbought; rsiColor = 'text-red-400'; }
+                else if (coin.rsi < 30) { rsiStatus = T.oversold; rsiColor = 'text-green-400'; }
+                else { rsiStatus = T.neutral; rsiColor = 'text-gray-400'; }
+                rsiHtml = `<div class="flex justify-between text-xs"><span class="text-gray-500">${T.rsi_title}</span><span class="${rsiColor}">${rsiStatus} (${coin.rsi.toFixed(1)})</span></div>`;
+            }
+            if (coin.sma) {
+                let smaStatus, smaColor;
+                if (price > coin.sma) { smaStatus = T.bullish; smaColor = 'text-green-400'; }
+                else { smaStatus = T.bearish; smaColor = 'text-red-400'; }
+                smaHtml = `<div class="flex justify-between text-xs mt-1"><span class="text-gray-500">${T.sma_title}</span><span class="${smaColor}">${smaStatus}</span></div>`;
             }
 
             const card = document.createElement('div');
@@ -272,9 +268,14 @@
                     <div class="mt-4"><p class="text-3xl font-semibold">${price.toLocaleString(state.lang === 'ko' ? 'ko-KR' : 'en-US', { style: 'currency', currency: state.currency })}</p><p class="text-lg ${change24h >= 0 ? 'text-green-400' : 'text-red-400'}">${change24h >= 0 ? '▲' : '▼'} ${change24h.toFixed(2)}% (24h)</p></div>
                 </div>
                 <div class="mt-4 pt-4 border-t border-gray-700">
-                    <p class="text-sm text-gray-400 mb-1">${timeframeText} ${T.watchlist.includes('목록') ? '기준 추세 예측' : 'Trend Prediction'}</p>
-                    <p class="text-lg font-bold ${predictionClass}">${predictionText}</p>
-                    <p class="text-xs text-gray-500 mt-1">${basisText}</p>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-bold text-gray-300">${T.evaluation_title}</span>
+                        <span class="text-lg font-bold ${evaluationColor}">${evaluationText}</span>
+                    </div>
+                    <div class="space-y-1">
+                        ${rsiHtml}
+                        ${smaHtml}
+                    </div>
                 </div>`;
             elements.cryptoContainer.appendChild(card);
         }
@@ -292,6 +293,18 @@
 
         function displayNews() {
             const T = translations[state.lang];
+            // AI 뉴스 감성 분석 (데모)
+            state.newsSentimentScore = Math.random(); // 0 to 1
+            let sentiment, sentimentColor, sentimentIcon;
+            if (state.newsSentimentScore > 0.66) {
+                sentiment = T.sentiment_positive; sentimentColor = 'text-green-400'; sentimentIcon = '😊';
+            } else if (state.newsSentimentScore < 0.33) {
+                sentiment = T.sentiment_negative; sentimentColor = 'text-red-400'; sentimentIcon = '😟';
+            } else {
+                sentiment = T.sentiment_neutral; sentimentColor = 'text-gray-400'; sentimentIcon = '😐';
+            }
+            elements.newsSentiment.innerHTML = `${T.sentiment_title} <span class="${sentimentColor}">${sentiment} ${sentimentIcon}</span>`;
+
             const newsData = [
                 { title: T.news1_title, source: T.news1_source, time: T.news1_time, url: "#" },
                 { title: T.news2_title, source: T.news2_source, time: T.news2_time, url: "#" },
@@ -311,12 +324,22 @@
             });
         }
 
-        // --- 데이터 가져오기 ---
+        // --- 데이터 가져오기 및 계산 ---
         async function fetchSidebarCoins() {
+            const lastFetch = localStorage.getItem('sidebarLastFetch');
+            const now = new Date().getTime();
+            if (lastFetch && (now - lastFetch < 24 * 60 * 60 * 1000)) {
+                state.allCoinsForSidebar = JSON.parse(localStorage.getItem('sidebarCache'));
+                populateSidebar();
+                return;
+            }
+
             try {
                 const response = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=${state.currency}&order=market_cap_desc&per_page=100&page=1&sparkline=false&x_cg_demo_api_key=${apiKey}`);
                 if (!response.ok) throw new Error('Failed to load sidebar coin list');
                 state.allCoinsForSidebar = await response.json();
+                localStorage.setItem('sidebarCache', JSON.stringify(state.allCoinsForSidebar));
+                localStorage.setItem('sidebarLastFetch', now);
                 populateSidebar();
             } catch (error) {
                 elements.coinListSidebar.innerHTML = `<p class="text-red-500 text-sm p-2">${error.message}</p>`;
@@ -335,41 +358,28 @@
                 const baseResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=${state.currency}&ids=${ids}&order=market_cap_desc&price_change_percentage=24h&x_cg_demo_api_key=${apiKey}`);
                 if (!baseResponse.ok) throw new Error(`API Request Failed`);
                 const baseData = await baseResponse.json();
-
-                if (state.activeTimeframe === '24h') {
-                    state.displayedCoinsData = baseData;
-                } else {
-                    const hours = state.activeTimeframe === '1h' ? 1 : 4;
-                    const detailedData = [];
-                    for (const coin of baseData) {
-                        try {
-                            const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${state.currency}&days=2&x_cg_demo_api_key=${apiKey}`);
-                            if (!chartResponse.ok) { 
-                                coin.prediction_change = coin.price_change_percentage_24h_in_currency; 
-                                continue; 
-                            }
-                            const chartData = await chartResponse.json();
-                            const prices = chartData.prices;
-                            if (!prices || prices.length < 2) { 
-                                coin.prediction_change = coin.price_change_percentage_24h_in_currency; 
-                                continue; 
-                            }
-                            const currentPriceData = prices[prices.length - 1];
-                            const targetTimestamp = currentPriceData[0] - hours * 60 * 60 * 1000;
-                            const pastPriceData = prices.slice().reverse().find(p => p[0] <= targetTimestamp);
-                            if (pastPriceData) {
-                                coin.prediction_change = ((currentPriceData[1] - pastPriceData[1]) / pastPriceData[1]) * 100;
-                            } else {
-                                coin.prediction_change = coin.price_change_percentage_24h_in_currency;
-                            }
-                        } catch (e) {
-                            coin.prediction_change = coin.price_change_percentage_24h_in_currency;
-                        } finally {
-                            detailedData.push(coin);
+                
+                const detailedData = [];
+                for (const coin of baseData) {
+                    await sleep(500); // API 속도 제한 방지를 위해 지연 추가
+                    try {
+                        const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${state.currency}&days=30&x_cg_demo_api_key=${apiKey}`);
+                        if (!chartResponse.ok) continue;
+                        const chartData = await chartResponse.json();
+                        const prices = chartData.prices.map(p => p[1]);
+                        if (prices.length >= 20) {
+                            coin.rsi = calculateRSI(prices);
+                            coin.sma = calculateSMA(prices, 20);
+                            coin.evaluation_score = calculateEvaluationScore(coin);
                         }
+                    } catch (e) {
+                        console.error(`Failed to fetch indicators for ${coin.id}`, e);
+                    } finally {
+                        detailedData.push(coin);
                     }
-                    state.displayedCoinsData = detailedData;
                 }
+                state.displayedCoinsData = detailedData;
+
                 render();
                 elements.lastUpdated.textContent = `${translations[state.lang].last_update} ${new Date().toLocaleTimeString(state.lang === 'ko' ? 'ko-KR' : 'en-US')}`;
             } catch (error) {
@@ -378,6 +388,40 @@
             } finally {
                 setLoading(false);
             }
+        }
+
+        function calculateRSI(prices, period = 14) {
+            let gains = 0;
+            let losses = 0;
+            for (let i = 1; i < prices.length; i++) {
+                const diff = prices[i] - prices[i - 1];
+                if (i > prices.length - period) {
+                    if (diff >= 0) { gains += diff; } else { losses -= diff; }
+                }
+            }
+            if (losses === 0) return 100;
+            const rs = (gains / period) / (losses / period);
+            return 100 - (100 / (1 + rs));
+        }
+
+        function calculateSMA(prices, period = 20) {
+            const lastPrices = prices.slice(-period);
+            const sum = lastPrices.reduce((acc, val) => acc + val, 0);
+            return sum / period;
+        }
+
+        function calculateEvaluationScore(coin) {
+            let score = 50; // Base score
+            if (coin.rsi) {
+                if (coin.rsi < 30) score += 25;
+                else if (coin.rsi > 70) score -= 25;
+                else score += (50 - coin.rsi) * 0.5; // -10 to +10
+            }
+            if (coin.sma) {
+                if (coin.current_price > coin.sma) score += 25;
+                else score -= 25;
+            }
+            return Math.max(0, Math.min(100, score)); // Clamp between 0 and 100
         }
         
         // --- 이벤트 핸들러 ---
@@ -402,12 +446,7 @@
                 render();
             }));
             elements.watchlistToggle.addEventListener('change', (e) => { state.showWatchlistOnly = e.target.checked; render(); });
-            elements.timeframeButtons.forEach(button => button.addEventListener('click', (e) => {
-                state.activeTimeframe = e.target.id.replace('btn-', '');
-                elements.timeframeButtons.forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
-                loadData();
-            }));
+            
             elements.cryptoContainer.addEventListener('click', (e) => {
                 const target = e.target;
                 if (target.classList.contains('star-icon')) {
@@ -447,12 +486,7 @@
                 let skeletonHTML = '';
                 const count = state.displayedCoinIds.size > 0 ? state.displayedCoinIds.size : 6;
                 for (let i = 0; i < count; i++) {
-                    skeletonHTML += `
-                    <div class="skeleton-card animate-pulse">
-                        <div class="flex items-center"><div class="skeleton w-10 h-10 rounded-full mr-4"></div><div class="flex-1 space-y-2"><div class="skeleton h-4 w-3/4"></div><div class="skeleton h-3 w-1/4"></div></div></div>
-                        <div class="mt-4 space-y-2"><div class="skeleton h-8 w-1/2"></div><div class="skeleton h-4 w-1/3"></div></div>
-                        <div class="mt-4 pt-4 border-t border-gray-700 space-y-2"><div class="skeleton h-3 w-1/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-3 w-full"></div></div>
-                    </div>`;
+                    skeletonHTML += `<div class="skeleton-card animate-pulse"><div class="flex items-center"><div class="skeleton w-10 h-10 rounded-full mr-4"></div><div class="flex-1 space-y-2"><div class="skeleton h-4 w-3/4"></div><div class="skeleton h-3 w-1/4"></div></div></div><div class="mt-4 space-y-2"><div class="skeleton h-8 w-1/2"></div><div class="skeleton h-4 w-1/3"></div></div><div class="mt-4 pt-4 border-t border-gray-700 space-y-2"><div class="skeleton h-3 w-1/4"></div><div class="skeleton h-4 w-1/2"></div><div class="skeleton h-3 w-full"></div></div></div>`;
                 }
                 elements.loadingIndicator.innerHTML = skeletonHTML;
                 elements.cryptoContainer.innerHTML = '';
@@ -470,11 +504,9 @@
             state.lang = lang;
             state.currency = lang === 'ko' ? 'krw' : 'usd';
             localStorage.setItem('cryptoLang', lang);
-
             document.documentElement.lang = lang;
             elements.langButtons.forEach(btn => btn.classList.remove('active'));
             document.getElementById(`lang-${lang}`).classList.add('active');
-            
             updateUIText();
             displayNews();
             fetchSidebarCoins();
@@ -498,11 +530,9 @@
             if (!coin) return;
             const T = translations[state.lang];
             const locale = state.lang === 'ko' ? 'ko-KR' : 'en-US';
-            
             elements.modalContent.innerHTML = `<div class="text-center"><svg class="animate-spin h-8 w-8 text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>`;
             elements.modalOverlay.style.display = 'flex';
             setTimeout(() => { elements.modalContent.style.transform = 'scale(1)'; elements.modalContent.style.opacity = '1'; }, 10);
-
             try {
                 const [detailsRes, chartRes] = await Promise.all([
                     fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false&x_cg_demo_api_key=${apiKey}`),
@@ -511,36 +541,11 @@
                 if (!detailsRes.ok || !chartRes.ok) throw new Error('Failed to fetch modal data');
                 const details = await detailsRes.json();
                 const chartData = await chartRes.json();
-
                 const description = details.description?.[state.lang] || details.description?.en || 'No description available.';
                 const website = details.links?.homepage?.[0];
-
-                elements.modalContent.innerHTML = `
-                    <button id="modal-close-inner" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
-                    <div class="flex items-center mb-4"><img src="${coin.image}" class="w-12 h-12 mr-4"><div><h2 class="text-2xl font-bold">${coin.name}</h2><p class="text-gray-400 uppercase">${coin.symbol}</p></div></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-3 text-lg">
-                            <div class="flex justify-between"><span class="text-gray-400">${T.modal_price}</span><span class="font-semibold">${(coin.current_price || 0).toLocaleString(locale, { style: 'currency', currency: state.currency })}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">${T.modal_mcap}</span><span>${(coin.market_cap || 0).toLocaleString(locale, { style: 'currency', currency: state.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">${T.modal_vol}</span><span>${(coin.total_volume || 0).toLocaleString(locale, { style: 'currency', currency: state.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">${T.modal_high}</span><span class="text-green-400">${(coin.high_24h || 0).toLocaleString(locale, { style: 'currency', currency: state.currency })}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">${T.modal_low}</span><span class="text-red-400">${(coin.low_24h || 0).toLocaleString(locale, { style: 'currency', currency: state.currency })}</span></div>
-                        </div>
-                        <div>
-                            <h3 class="font-bold mb-2">${T.modal_chart_title}</h3>
-                            <canvas id="priceChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="mt-6">
-                        <h3 class="font-bold mb-2">${T.modal_desc_title}</h3>
-                        <p class="text-sm text-gray-400 max-h-24 overflow-y-auto">${description.split('. ')[0]}.</p>
-                    </div>
-                    ${website ? `<div class="mt-4"><h3 class="font-bold mb-2">${T.modal_links_title}</h3><a href="${website}" target="_blank" rel="noopener noreferrer" class="inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">${T.modal_website}</a></div>` : ''}
-                `;
-                
+                elements.modalContent.innerHTML = `<button id="modal-close-inner" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl leading-none">&times;</button><div class="flex items-center mb-4"><img src="${coin.image}" class="w-12 h-12 mr-4"><div><h2 class="text-2xl font-bold">${coin.name}</h2><p class="text-gray-400 uppercase">${coin.symbol}</p></div></div><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="space-y-3 text-lg"><div class="flex justify-between"><span class="text-gray-400">${T.modal_price}</span><span class="font-semibold">${(coin.current_price || 0).toLocaleString(locale, { style: 'currency', currency: state.currency })}</span></div><div class="flex justify-between"><span class="text-gray-400">${T.modal_mcap}</span><span>${(coin.market_cap || 0).toLocaleString(locale, { style: 'currency', currency: state.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div><div class="flex justify-between"><span class="text-gray-400">${T.modal_vol}</span><span>${(coin.total_volume || 0).toLocaleString(locale, { style: 'currency', currency: state.currency, minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span></div><div class="flex justify-between"><span class="text-gray-400">${T.modal_high}</span><span class="text-green-400">${(coin.high_24h || 0).toLocaleString(locale, { style: 'currency', currency: state.currency })}</span></div><div class="flex justify-between"><span class="text-gray-400">${T.modal_low}</span><span class="text-red-400">${(coin.low_24h || 0).toLocaleString(locale, { style: 'currency', currency: state.currency })}</span></div></div><div><h3 class="font-bold mb-2">${T.modal_chart_title}</h3><canvas id="priceChart"></canvas></div></div><div class="mt-6"><h3 class="font-bold mb-2">${T.modal_desc_title}</h3><p class="text-sm text-gray-400 max-h-24 overflow-y-auto">${description.replace(/<a href/g, '<a class="text-blue-400" target="_blank" href')}</p></div>${website ? `<div class="mt-4"><h3 class="font-bold mb-2">${T.modal_links_title}</h3><a href="${website}" target="_blank" rel="noopener noreferrer" class="inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">${T.modal_website}</a></div>` : ''}`;
                 renderChart(chartData.prices);
                 document.getElementById('modal-close-inner').addEventListener('click', closeModal);
-
             } catch(e) {
                 elements.modalContent.innerHTML = `<p class="text-red-400">Failed to load details.</p>`;
             }
@@ -548,32 +553,19 @@
         
         function renderChart(prices) {
             const ctx = document.getElementById('priceChart').getContext('2d');
-            if (state.chartInstance) {
-                state.chartInstance.destroy();
-            }
+            if (state.chartInstance) state.chartInstance.destroy();
             const labels = prices.map(p => new Date(p[0]).toLocaleDateString(state.lang === 'ko' ? 'ko-KR' : 'en-US'));
             const data = prices.map(p => p[1]);
             const borderColor = data[0] < data[data.length - 1] ? '#22c55e' : '#ef4444';
-
             state.chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: { labels, datasets: [{ label: 'Price', data, borderColor, borderWidth: 2, pointRadius: 0, tension: 0.1 }] },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { ticks: { display: false }, grid: { color: 'rgba(255, 255, 255, 0.1)' } },
-                        y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }
-                    }
-                }
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { display: false }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } } } }
             });
         }
 
         function closeModal() {
-            if (state.chartInstance) {
-                state.chartInstance.destroy();
-                state.chartInstance = null;
-            }
+            if (state.chartInstance) { state.chartInstance.destroy(); state.chartInstance = null; }
             elements.modalContent.style.transform = 'scale(0.95)';
             elements.modalContent.style.opacity = '0';
             setTimeout(() => { elements.modalOverlay.style.display = 'none'; }, 300);
@@ -586,7 +578,7 @@
             const savedLang = localStorage.getItem('cryptoLang') || (navigator.language.startsWith('ko') ? 'ko' : 'en');
             setupEventListeners();
             setLanguage(savedLang);
-            setInterval(loadData, 60000); // 60초마다 데이터 갱신
+            setInterval(loadData, 60000);
         }
         initialize();
     </script>
