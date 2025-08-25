@@ -25,20 +25,23 @@
         .skeleton { background-color: #374151; border-radius: 0.5rem; }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="bg-gray-900 text-white overflow-hidden">
 
     <div class="flex h-screen">
+        <!-- 사이드바 오버레이 (모바일용) -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden"></div>
+
         <!-- 코인 목록 사이드바 -->
-        <aside id="sidebar" class="w-64 bg-gray-800/50 backdrop-blur-sm p-4 flex flex-col h-full border-r border-gray-700 transition-all duration-300">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-gray-800/80 backdrop-blur-sm p-4 flex flex-col h-full border-r border-gray-700 transition-transform duration-300 ease-in-out transform -translate-x-full lg:relative lg:translate-x-0">
             <h2 class="text-xl font-bold mb-2 text-center" data-lang-key="sidebar_title">코인 목록 (상위 100)</h2>
             <p id="limit-message" class="text-center text-red-400 text-xs mb-2 h-4 opacity-0" data-lang-key="limit_message">최대 6개까지 추가 가능합니다.</p>
             <div id="coin-list-sidebar" class="flex-grow overflow-y-auto"></div>
         </aside>
 
         <!-- 메인 컨텐츠 -->
-        <main class="flex-grow p-4 md:p-8 overflow-y-auto h-full relative">
+        <main class="flex-grow p-4 md:p-6 overflow-y-auto h-full relative">
             <!-- 사이드바 토글 버튼 -->
-            <button id="sidebar-toggle" class="absolute top-5 left-4 z-20 p-2 bg-gray-700/50 backdrop-blur-sm rounded-md text-white hover:bg-gray-600 transition-colors">
+            <button id="sidebar-toggle" class="fixed top-4 left-4 z-40 p-2 bg-gray-700/50 backdrop-blur-sm rounded-md text-white hover:bg-gray-600 transition-colors lg:hidden">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -46,8 +49,8 @@
 
             <div class="container mx-auto max-w-7xl">
                 <header class="text-center mb-4 relative">
-                    <h1 class="text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500" data-lang-key="main_title">Oracoin</h1>
-                    <p class="text-gray-400" data-lang-key="main_subtitle">실시간 암호화폐 추세 예측</p>
+                    <h1 class="text-3xl sm:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500" data-lang-key="main_title">Oracoin</h1>
+                    <p class="text-gray-400 text-sm sm:text-base" data-lang-key="main_subtitle">실시간 암호화폐 추세 예측</p>
                     <!-- 언어 선택 -->
                     <div class="absolute top-0 right-0 flex space-x-2">
                         <button id="lang-ko" class="lang-btn control-btn px-3 py-1 text-sm rounded-md">KO</button>
@@ -78,8 +81,8 @@
                     </div>
                 </div>
 
-                <div id="loading-indicator" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-                <div id="crypto-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                <div id="loading-indicator" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+                <div id="crypto-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
                 <div id="no-results" class="hidden text-center text-gray-400 py-10 col-span-full"></div>
 
                 <div class="mt-16">
@@ -96,13 +99,14 @@
         </main>
     </div>
     
-    <div id="modal-overlay" class="fixed inset-0 items-center justify-center hidden z-50"><div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-11/12 max-w-2xl mx-auto relative transform transition-all duration-300 scale-95 opacity-0"><button id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button></div></div>
+    <div id="modal-overlay" class="fixed inset-0 items-center justify-center hidden z-50 p-4"><div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-auto relative transform transition-all duration-300 scale-95 opacity-0"><button id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button></div></div>
 
     <script>
         // DOM 요소
         const elements = {
             sidebar: document.getElementById('sidebar'),
             sidebarToggle: document.getElementById('sidebar-toggle'),
+            sidebarOverlay: document.getElementById('sidebar-overlay'),
             cryptoContainer: document.getElementById('crypto-container'),
             loadingIndicator: document.getElementById('loading-indicator'),
             lastUpdated: document.getElementById('last-updated'),
@@ -376,7 +380,12 @@
         // --- 이벤트 핸들러 ---
         function setupEventListeners() {
             elements.sidebarToggle.addEventListener('click', () => {
-                elements.sidebar.classList.toggle('hidden');
+                elements.sidebar.classList.toggle('-translate-x-full');
+                elements.sidebarOverlay.classList.toggle('hidden');
+            });
+            elements.sidebarOverlay.addEventListener('click', () => {
+                elements.sidebar.classList.add('-translate-x-full');
+                elements.sidebarOverlay.classList.add('hidden');
             });
 
             elements.searchInput.addEventListener('input', (e) => { state.searchTerm = e.target.value.toLowerCase(); render(); });
@@ -433,7 +442,8 @@
         function setLoading(isLoading) {
             if (isLoading) {
                 let skeletonHTML = '';
-                for (let i = 0; i < state.displayedCoinIds.size; i++) {
+                const count = state.displayedCoinIds.size > 0 ? state.displayedCoinIds.size : 6;
+                for (let i = 0; i < count; i++) {
                     skeletonHTML += `
                     <div class="skeleton-card animate-pulse">
                         <div class="flex items-center"><div class="skeleton w-10 h-10 rounded-full mr-4"></div><div class="flex-1 space-y-2"><div class="skeleton h-4 w-3/4"></div><div class="skeleton h-3 w-1/4"></div></div></div>
