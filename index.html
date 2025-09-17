@@ -234,7 +234,7 @@
             noResults: document.getElementById('no-results'),
             modalOverlay: document.getElementById('modal-overlay'),
             modalContent: document.getElementById('modal-content'),
-            modalClose: document.getElementById('modal-close'),
+            // modalClose is handled dynamically
             coinListSidebar: document.getElementById('coin-list-sidebar'),
             limitMessage: document.getElementById('limit-message'),
             langButtons: document.querySelectorAll('.lang-btn'),
@@ -807,6 +807,15 @@
         
         // --- 이벤트 리스너 설정 ---
         function setupEventListeners() {
+            elements.navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPage(e.target.dataset.page);
+                });
+            });
+            elements.mobileMenuButton.addEventListener('click', () => {
+                elements.mobileMenu.classList.toggle('hidden');
+            });
             elements.sidebarToggle.addEventListener('click', () => {
                 elements.sidebar.classList.toggle('-translate-x-full');
                 elements.sidebarOverlay.classList.toggle('hidden');
@@ -844,14 +853,17 @@
         
         // --- 앱 초기화 ---
         function initialize() {
-            showPage('home');
             const savedLang = localStorage.getItem('cryptoLang') || (navigator.language.startsWith('ko') ? 'ko' : 'en');
             const savedFavorites = localStorage.getItem('cryptoFavorites');
             if (savedFavorites) state.favorites = JSON.parse(savedFavorites);
             const savedSelectedCoins = localStorage.getItem('selectedCoinIds');
-            if(savedSelectedCoins) state.selectedCoinIds = JSON.parse(savedSelectedCoins);
+            if(savedSelectedCoins && JSON.parse(savedSelectedCoins).length > 0) {
+                 state.selectedCoinIds = JSON.parse(savedSelectedCoins);
+            }
+            
             setupEventListeners();
             setLanguage(savedLang);
+            
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/service-worker.js').catch(err => console.log('SW registration failed: ', err));
