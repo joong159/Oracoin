@@ -19,7 +19,7 @@
         .page-section.active { display: block; }
         .nav-link.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
         .prose { color: #d1d5db; }
-        .prose h1, .prose h2, .prose h3 { color: #f9fafb; }
+        .prose h1, .prose h2, .prose h3, .prose h4 { color: #f9fafb; }
         .prose a { color: #60a5fa; }
         .prose blockquote { border-left-color: #374151; }
         .prose code { color: #f9fafb; background-color: #1f2937; padding: 0.2em 0.4em; border-radius: 0.3em;}
@@ -63,7 +63,7 @@
                         <button id="lang-en" class="lang-btn control-btn px-3 py-1 text-sm rounded-md">EN</button>
                     </div>
                     <button id="mobile-menu-button" class="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700">
-                        <svg class="h-6 w-6" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
                     </button>
                 </div>
             </div>
@@ -117,30 +117,27 @@
             </div>
         </section>
 
-        <!-- AI 브리핑 페이지 -->
+        <!-- AI 브리핑 페이지 (UI/UX 개편) -->
         <section id="blog-page" class="page-section">
             <div class="container mx-auto max-w-4xl py-12 px-4">
-                <h1 class="text-4xl font-bold text-center mb-2" data-lang-key="blog_title">오늘의 AI 브리핑</h1>
-                <p class="text-center text-gray-400 mb-8" data-lang-key="blog_subtitle">최신 뉴스를 바탕으로 AI가 제공하는 시장 분석입니다.</p>
+                <h1 class="text-4xl font-bold text-center mb-2" data-lang-key="blog_title">개인화 AI 브리핑</h1>
+                <p class="text-center text-gray-400 mb-8" data-lang-key="blog_subtitle">선택한 코인에 대한 맞춤형 AI 분석 리포트입니다.</p>
                 
+                <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700 mb-8">
+                    <h3 class="font-bold mb-2" data-lang-key="analysis_target">분석 대상 코인</h3>
+                    <div id="briefing-coin-list" class="flex flex-wrap gap-2">
+                        <!-- 선택된 코인이 여기에 표시됩니다 -->
+                    </div>
+                </div>
+
                 <div class="text-center mb-8">
-                    <button id="fetch-ai-briefing" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-blue-500/30">
-                        <span data-lang-key="fetch_briefing_btn">오늘의 뉴스 및 AI 의견 불러오기</span>
+                    <button id="fetch-ai-briefing" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-blue-500/30 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                        <span data-lang-key="fetch_briefing_btn">선택한 코인 AI 분석 생성</span>
                     </button>
                 </div>
 
-                <div id="ai-briefing-container" class="prose lg:prose-xl max-w-none mb-12 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-                    <h2 class="!mt-0" data-lang-key="ai_opinion_title">AI 종합 의견</h2>
-                    <div id="ai-briefing-content">
-                        <p class="text-gray-400" data-lang-key="ai_opinion_placeholder">버튼을 눌러 최신 시장에 대한 AI의 종합 의견을 확인하세요.</p>
-                    </div>
-                </div>
-
-                <div id="news-list-container">
-                    <h2 class="text-2xl font-bold mb-4" data-lang-key="related_news_title">분석에 사용된 뉴스 목록</h2>
-                    <div id="news-list-content" class="space-y-4">
-                         <!-- 뉴스가 여기에 동적으로 추가됩니다 -->
-                    </div>
+                <div id="ai-briefing-results-container" class="space-y-8">
+                    <!-- AI 분석 결과가 여기에 카드 형태로 표시됩니다 -->
                 </div>
             </div>
         </section>
@@ -223,7 +220,7 @@
     <script>
         // --- API 키 설정 ---
         const coingeckoApiKey = 'CG-xmGqWe2JgRKTWjf1WSPT9saQ';
-
+        
         // --- 페이지 네비게이션 로직 ---
         const pageContainer = document.getElementById('page-container');
         const pageSections = document.querySelectorAll('.page-section');
@@ -232,16 +229,16 @@
         const mobileMenu = document.getElementById('mobile-menu');
 
         function showPage(pageId) {
-            pageSections.forEach(section => {
-                section.classList.remove('active');
-            });
+            pageSections.forEach(section => section.classList.remove('active'));
             const targetPage = document.getElementById(pageId + '-page');
-            if(targetPage) {
-                targetPage.classList.add('active');
+            if(targetPage) targetPage.classList.add('active');
+            
+            navLinks.forEach(link => link.classList.toggle('active', link.dataset.page === pageId));
+            
+            if (pageId === 'blog') {
+                renderBriefingCoinList();
             }
-            navLinks.forEach(link => {
-                link.classList.toggle('active', link.dataset.page === pageId);
-            });
+
             window.scrollTo(0, 0); 
             mobileMenu.classList.add('hidden'); 
         }
@@ -249,87 +246,117 @@
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const pageId = e.target.dataset.page;
-                showPage(pageId);
+                showPage(e.target.dataset.page);
             });
         });
         
-        mobileMenuButton.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
+        mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
 
-        // --- AI 브리핑 로직 (보안 강화) ---
-        async function fetchNewsAndOpinion() {
-            const briefingContent = document.getElementById('ai-briefing-content');
-            const newsListContent = document.getElementById('news-list-content');
+        // --- AI 브리핑 로직 ---
+        function renderBriefingCoinList() {
+            const container = document.getElementById('briefing-coin-list');
+            const fetchButton = document.getElementById('fetch-ai-briefing');
+            
+            if (state.selectedCoinIds.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-sm">${t('add_coin_for_briefing')}</p>`;
+                fetchButton.disabled = true;
+                return;
+            }
+
+            container.innerHTML = '';
+            fetchButton.disabled = false;
+            state.selectedCoinIds.forEach(id => {
+                const coin = state.allCoins.find(c => c.id === id);
+                if (coin) {
+                    container.innerHTML += `<span class="bg-gray-700 text-sm font-medium px-3 py-1 rounded-full flex items-center"><img src="${coin.image}" class="w-4 h-4 mr-2 rounded-full">${coin.name}</span>`;
+                }
+            });
+        }
+
+        async function fetchPersonalizedBriefing() {
+            const resultsContainer = document.getElementById('ai-briefing-results-container');
             const fetchButton = document.getElementById('fetch-ai-briefing');
 
             fetchButton.disabled = true;
-            briefingContent.innerHTML = `<div class="flex items-center justify-center"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div><p class="ml-3">${t('ai_loading')}</p></div>`;
-            newsListContent.innerHTML = '';
+            resultsContainer.innerHTML = `<div class="flex items-center justify-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div><p class="ml-4 text-lg">${t('ai_loading')}</p></div>`;
 
-            const lang = state.language || 'ko';
-            const newsPrompt = lang === 'ko' ? "전 세계의 주요 암호화폐 관련 최신 뉴스 5개를 찾아서, 국내 및 해외 뉴스를 적절히 섞어 목록을 만들어주세요. 각 뉴스의 제목(title)과 원문 링크(url)를 알려주세요." : "Find 5 major, recent cryptocurrency news headlines from various global English-speaking sources. Provide the title and the original URL for each.";
+            const coinNames = state.selectedCoinIds.map(id => {
+                const coin = state.allCoins.find(c => c.id === id);
+                return coin ? coin.name : id;
+            });
             
             try {
-                const newsPayload = {
-                    contents: [{ parts: [{ text: newsPrompt }] }],
-                    tools: [{ "google_search": {} }],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { "title": { "type": "STRING" }, "url": { "type": "STRING" } }, required: ["title", "url"] } }
-                    }
+                const payload = {
+                    lang: state.language,
+                    coins: coinNames
                 };
-                
-                const newsResponse = await fetch('/api/briefing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newsPayload) });
-                if (!newsResponse.ok) {
-                    if (newsResponse.status === 500) throw new Error(t('api_key_error_server'));
-                    throw new Error(`News fetching failed with status: ${newsResponse.status}`);
-                }
-                const newsResult = await newsResponse.json();
-                const newsArticles = JSON.parse(newsResult.candidates?.[0]?.content?.parts?.[0]?.text || '[]');
 
-                let newsHtml = '';
-                if(newsArticles.length > 0){
-                    newsArticles.forEach(article => {
-                        newsHtml += `<a href="${article.url}" target="_blank" rel="noopener noreferrer" class="block p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"><p class="font-semibold text-blue-400 hover:text-blue-300">${article.title}</p></a>`;
-                    });
-                    newsListContent.innerHTML = newsHtml;
-                } else {
-                    newsListContent.innerHTML = `<p class="text-gray-400">${t('no_news_found')}</p>`;
+                const response = await fetch('/api/briefing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    if (response.status === 500) throw new Error(t('api_key_error_server'));
+                    throw new Error(`Briefing fetching failed with status: ${response.status}`);
                 }
 
-                const headlines = newsArticles.map(a => a.title).join('\n - ');
-                const opinionPrompt = lang === 'ko' ? `다음은 최신 암호화폐 관련 뉴스 헤드라인 목록입니다:\n - ${headlines}\n\n위 뉴스들을 바탕으로, 오늘 암호화폐 시장의 전반적인 분위기와 투자자들이 주목해야 할 핵심 포인트를 요약하여 전문가의 의견을 마크다운 형식으로 작성해주세요. 신뢰감 있는 톤으로 작성해주세요.` : `Here is a list of recent cryptocurrency news headlines:\n - ${headlines}\n\nBased on these news headlines, please write an expert opinion summarizing the overall market sentiment today and the key points investors should pay attention to. Please use Markdown format and maintain a credible, authoritative tone.`;
+                const result = await response.json();
+                const analysisData = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '[]');
                 
-                const opinionPayload = { contents: [{ parts: [{ text: opinionPrompt }] }] };
-                
-                const opinionResponse = await fetch('/api/briefing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opinionPayload) });
-                if (!opinionResponse.ok) throw new Error(`Opinion generation failed with status: ${opinionResponse.status}`);
-                const opinionResult = await opinionResponse.json();
-                const opinionText = opinionResult.candidates?.[0]?.content?.parts?.[0]?.text || t('opinion_error');
-                
-                let opinionHtml = opinionText
-                    .replace(/^## (.*$)/gim, '<h3 class="text-xl font-semibold mt-4 mb-2">$1</h3>')
-                    .replace(/^### (.*$)/gim, '<h4 class="text-lg font-semibold mt-3 mb-1">$1</h4>')
-                    .replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\s*-\s(.*$)/gim, '<li>$1</li>')
-                
-                if(opinionHtml.includes('<li>')) {
-                    opinionHtml = `<ul>${opinionHtml.replace(/<\/li><li>/g, '</li>\n<li>')}</ul>`.replace(/<\/ul>\s*<ul>/g, '');
-                }
-                opinionHtml = opinionHtml.replace(/(?<!<\/li>)(?<!<\/h3>)(?<!<\/h4>)\n/g, '<br>');
-
-                briefingContent.innerHTML = opinionHtml;
+                renderBriefingResults(analysisData);
 
             } catch (error) {
                 console.error("AI 브리핑 실패:", error);
-                briefingContent.innerHTML = `<p class="text-red-400">${error.message || t('briefing_error')}</p>`;
+                resultsContainer.innerHTML = `<p class="text-red-400 text-center">${error.message || t('briefing_error')}</p>`;
             } finally {
                 fetchButton.disabled = false;
             }
         }
 
+        function renderBriefingResults(data) {
+            const container = document.getElementById('ai-briefing-results-container');
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-center">${t('no_analysis_data')}</p>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const recClass = item.analysis.recommendation.includes(t('rec_buy_keyword')) ? 'bg-green-500/10 text-green-400' : 
+                                 item.analysis.recommendation.includes(t('rec_sell_keyword')) ? 'bg-red-500/10 text-red-400' :
+                                 'bg-gray-500/10 text-gray-400';
+
+                const cardHtml = `
+                    <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-6 prose max-w-none">
+                        <h2 class="!mt-0 !mb-4">${item.coinName} AI 분석 리포트</h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div class="bg-gray-700/50 p-3 rounded-md">
+                                <h4 class="text-sm font-bold uppercase text-gray-400 !mt-0 !mb-1">${t('recommendation_title')}</h4>
+                                <p class="text-lg font-bold ${recClass} px-2 py-1 rounded-md inline-block !my-0">${item.analysis.recommendation}</p>
+                            </div>
+                            <div class="bg-gray-700/50 p-3 rounded-md">
+                                <h4 class="text-sm font-bold uppercase text-gray-400 !mt-0 !mb-1">${t('price_target_title')}</h4>
+                                <p class="text-lg font-bold !my-0">${item.analysis.priceTarget}</p>
+                            </div>
+                        </div>
+
+                        <h3 class="!mb-2">${t('ai_opinion_title')}</h3>
+                        <div class="text-gray-300">${item.analysis.opinion.replace(/\n/g, '<br>')}</div>
+
+                        <h3 class="mt-6 !mb-2">${t('related_news_title')}</h3>
+                        <ul class="!pl-5">
+                            ${(item.relatedNews || []).map(news => `<li><a href="${news.url}" target="_blank" rel="noopener noreferrer">${news.title}</a></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+        
         // --- Oracoin 분석 도구 로직 ---
         const elements = {
             sidebar: document.getElementById('sidebar'),
@@ -349,9 +376,7 @@
             langButtons: document.querySelectorAll('.lang-btn'),
             fetchBriefingBtn: document.getElementById('fetch-ai-briefing'),
         };
-
         let chartInstance = null;
-
         const state = {
             language: 'ko',
             currency: 'krw',
@@ -363,7 +388,6 @@
             sortBy: 'name',
             watchlistOnly: false,
         };
-
         const translations = {
             ko: {
                 sidebar_title: "코인 목록 (상위 100)",
@@ -394,13 +418,18 @@
                 description: "설명",
                 homepage: "공식 홈페이지",
                 chart_title: "7일 가격 변동",
-                blog_title: "오늘의 AI 브리핑",
-                blog_subtitle: "최신 뉴스를 바탕으로 AI가 제공하는 시장 분석입니다.",
-                fetch_briefing_btn: "오늘의 뉴스 및 AI 의견 불러오기",
+                blog_title: "개인화 AI 브리핑",
+                blog_subtitle: "선택한 코인에 대한 맞춤형 AI 분석 리포트입니다.",
+                analysis_target: "분석 대상 코인",
+                fetch_briefing_btn: "선택한 코인 AI 분석 생성",
+                add_coin_for_briefing: "홈 화면에서 분석할 코인을 먼저 추가해주세요.",
+                recommendation_title: "투자 판단",
+                price_target_title: "단기 목표가",
+                rec_buy_keyword: "매수",
+                rec_sell_keyword: "매도",
+                no_analysis_data: "분석 데이터를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
                 ai_opinion_title: "AI 종합 의견",
-                ai_opinion_placeholder: "버튼을 눌러 최신 시장에 대한 AI의 종합 의견을 확인하세요.",
-                related_news_title: "분석에 사용된 뉴스 목록",
-                ai_loading: "AI가 최신 뉴스를 분석하고 있습니다...",
+                related_news_title: "관련 뉴스",
                 api_key_error_server: "서버에 API 키가 설정되지 않았습니다. 사이트 관리자에게 문의하세요.",
                 briefing_error: "브리핑을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.",
                 opinion_error: "의견을 생성하지 못했습니다.",
@@ -459,12 +488,18 @@
                 description: "Description",
                 homepage: "Official Homepage",
                 chart_title: "7-Day Price Change",
-                blog_title: "Today's AI Briefing",
-                blog_subtitle: "Market analysis provided by AI based on the latest news.",
-                fetch_briefing_btn: "Load Today's News & AI Opinion",
+                blog_title: "Personalized AI Briefing",
+                blog_subtitle: "Custom AI analysis reports for your selected coins.",
+                analysis_target: "Coins to Analyze",
+                fetch_briefing_btn: "Generate AI Analysis for Selected Coins",
+                add_coin_for_briefing: "Please add coins on the Home screen to analyze.",
+                recommendation_title: "Recommendation",
+                price_target_title: "Short-term Price Target",
+                rec_buy_keyword: "Buy",
+                rec_sell_keyword: "Sell",
+                no_analysis_data: "Could not generate analysis data. Please try again later.",
                 ai_opinion_title: "AI Overall Opinion",
-                ai_opinion_placeholder: "Press the button to get AI's overall opinion on the latest market.",
-                related_news_title: "News Used in Analysis",
+                related_news_title: "Related News",
                 ai_loading: "AI is analyzing the latest news...",
                 api_key_error_server: "API key is not configured on the server. Please contact the site administrator.",
                 briefing_error: "Failed to generate briefing. Please try again later.",
@@ -964,7 +999,7 @@
                 button.addEventListener('click', () => setLanguage(button.id.split('-')[1]));
             });
 
-            elements.fetchBriefingBtn.addEventListener('click', fetchNewsAndOpinion);
+            elements.fetchBriefingBtn.addEventListener('click', fetchPersonalizedBriefing);
         }
         
         function initialize() {
