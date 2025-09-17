@@ -24,6 +24,7 @@
         .prose blockquote { border-left-color: #374151; }
         .prose code { color: #f9fafb; background-color: #1f2937; padding: 0.2em 0.4em; border-radius: 0.3em;}
         .prose pre { background-color: #1f2937; padding: 1em; border-radius: 0.5em; }
+        .prose ul > li::before { background-color: #60a5fa; }
         /* 기존 스타일 유지 */
         .eval-buy { color: #22c55e; }
         .eval-caution { color: #ef4444; }
@@ -62,7 +63,7 @@
                         <button id="lang-en" class="lang-btn control-btn px-3 py-1 text-sm rounded-md">EN</button>
                     </div>
                     <button id="mobile-menu-button" class="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700">
-                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                        <svg class="h-6 w-6" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
                     </button>
                 </div>
             </div>
@@ -148,10 +149,21 @@
         <section id="about-page" class="page-section">
             <div class="container mx-auto max-w-4xl py-12 px-4">
                 <div class="prose lg:prose-xl max-w-none">
-                    <h1 data-lang-key="about_title">About Oracoin</h1>
-                    <p data-lang-key="about_p1">Oracoin은 복잡하고 변동성 높은 암호화폐 시장에서 투자자들이 더 나은 결정을 내릴 수 있도록 돕기 위해 탄생했습니다. 저희는 객관적인 데이터와 정교한 기술적 분석, 그리고 AI 뉴스 분석을 결합하여 시장의 추세를 예측하고, 각 코인의 현재 상태를 직관적으로 평가해주는 올인원 분석 도구입니다.</p>
+                    <h1 data-lang-key="about_title">Oracoin: 당신의 손안의 암호화폐 분석가</h1>
+                    <p data-lang-key="about_p1">Oracoin은 복잡하고 변동성이 높은 암호화폐 시장에서, 데이터에 기반한 현명한 결정을 내릴 수 있도록 돕는 강력한 올인원 분석 도구입니다. 매일 쏟아지는 정보의 홍수 속에서 길을 잃지 않도록, Oracoin은 당신을 위한 명확한 나침반이 되어 드립니다.</p>
+                    
                     <h2 data-lang-key="about_h2">우리의 미션</h2>
-                    <p data-lang-key="about_p2">정보의 비대칭성을 해소하고, 누구나 쉽게 데이터에 기반한 현명한 투자를 할 수 있는 환경을 만드는 것입니다. 초보 투자자부터 숙련된 트레이더까지, Oracoin은 여러분의 곁에서 가장 신뢰할 수 있는 나침반이 되어드리겠습니다.</p>
+                    <p data-lang-key="about_p2">우리의 미션은 단 하나, 정보의 비대칭성을 해소하여 누구나 공평하게 투자 기회를 잡을 수 있는 환경을 만드는 것입니다. 소수의 전문가만 접근 가능했던 복잡한 분석 도구와 인사이트를, 이제 Oracoin을 통해 누구나 쉽게 활용할 수 있습니다.</p>
+
+                    <h3 data-lang-key="about_h3_1">Oracoin의 핵심 기능</h3>
+                    <ul>
+                        <li data-lang-key="about_li1"><strong>실시간 데이터 분석:</strong> 전 세계 주요 코인의 가격, 변동률, 기술적 지표(RSI, 이동평균선)를 실시간으로 추적하고 객관적인 평가를 제공합니다.</li>
+                        <li data-lang-key="about_li2"><strong>AI 뉴스 브리핑:</strong> 최신 국내외 뉴스를 AI가 분석하여, 시장의 전반적인 분위기와 핵심 포인트를 요약한 '오늘의 브리핑'을 매일 제공합니다.</li>
+                        <li data-lang-key="about_li3"><strong>완벽한 개인화:</strong> 최대 6개의 관심 코인을 직접 선택하고, 관심 목록, 검색, 정렬 기능을 통해 자신만의 맞춤형 대시보드를 구성할 수 있습니다.</li>
+                    </ul>
+
+                    <h3 data-lang-key="about_h3_2">우리의 약속</h3>
+                    <p data-lang-key="about_p3">Oracoin은 투자 조언이나 권유를 하지 않습니다. 우리는 오직 객관적이고 가치 있는 데이터를 제공하여, 최종적으로 당신이 더 나은 투자 결정을 내릴 수 있도록 돕는 것에 집중합니다. 당신의 성공적인 투자 여정에 Oracoin이 함께하겠습니다.</p>
                 </div>
             </div>
         </section>
@@ -161,8 +173,8 @@
             <div class="container mx-auto max-w-4xl py-12 px-4">
                  <div class="prose lg:prose-xl max-w-none">
                     <h1 data-lang-key="contact_title">Contact Us</h1>
-                    <p data-lang-key="contact_p1">Oracoin에 대한 질문, 제휴 제안, 또는 피드백이 있으신가요? 언제든지 아래 이메일로 연락 주시면 최대한 빠르게 답변해 드리겠습니다.</p>
-                    <p><strong>Email:</strong> <a href="mailto:contact@oracoin.dev">contact@oracoin.dev</a></p>
+                    <p data-lang-key="contact_p1">Oracoin에 대한 질문, 파트너십 제안, 혹은 소중한 피드백이 있으신가요? 언제든지 아래 이메일로 연락 주시면 저희 팀이 최대한 빠르게 확인하고 답변해 드리겠습니다.</p>
+                    <p><strong><span data-lang-key="contact_email_label">문의 이메일</span>:</strong> <a href="mailto:contact@oracoin.dev">contact@oracoin.dev</a></p>
                 </div>
             </div>
         </section>
@@ -171,12 +183,22 @@
         <section id="privacy-page" class="page-section">
              <div class="container mx-auto max-w-4xl py-12 px-4">
                  <div class="prose lg:prose-xl max-w-none">
-                    <h1 data-lang-key="privacy_title">Privacy Policy</h1>
-                    <p data-lang-key="privacy_p1">Oracoin은 사용자의 개인정보를 소중하게 생각하며, 정보통신망 이용촉진 및 정보보호 등에 관한 법률을 준수하고 있습니다. 본 개인정보처리방침은 Oracoin이 어떤 정보를 수집하고, 어떻게 사용하며, 누구와 공유하는지 등을 담고 있습니다.</p>
-                    <h2 data-lang-key="privacy_h2_1">1. 수집하는 개인정보 항목</h2>
-                    <p data-lang-key="privacy_p2">Oracoin은 별도의 회원가입 절차가 없으므로, 개인을 식별할 수 있는 어떠한 정보(이름, 이메일 등)도 수집하지 않습니다. 다만, 서비스 이용 과정에서 IP 주소, 쿠키, 방문 일시 등의 서비스 이용 기록이 자동으로 생성되어 수집될 수 있습니다.</p>
-                    <h2 data-lang-key="privacy_h2_2">2. 개인정보의 수집 및 이용목적</h2>
-                    <p data-lang-key="privacy_p3">수집된 서비스 이용 기록은 서비스 개선, 통계 분석, 접속 빈도 파악 및 사용자의 관심 분야에 따른 맞춤형 광고 제공(구글 애드센스)을 위해 사용됩니다.</p>
+                    <h1 data-lang-key="privacy_title">개인정보처리방침</h1>
+                    <p><strong data-lang-key="privacy_effective_date">시행일: 2025년 9월 17일</strong></p>
+                    <p data-lang-key="privacy_p1">Oracoin(이하 '서비스')은 사용자의 개인정보를 소중하게 생각하며, 정보통신망 이용촉진 및 정보보호 등에 관한 법률을 비롯한 모든 개인정보보호 관련 법규를 준수하고 있습니다.</p>
+                    
+                    <h2 data-lang-key="privacy_h2_1">1. 수집하는 개인정보 항목 및 목적</h2>
+                    <p data-lang-key="privacy_p2">저희 서비스는 별도의 회원가입 절차가 없으므로, 이름, 이메일 주소 등 개인을 식별할 수 있는 어떠한 정보도 의도적으로 수집하지 않습니다. 다만, 서비스 이용 과정에서 다음과 같은 정보가 자동으로 생성되어 수집될 수 있습니다.</p>
+                    <ul>
+                        <li data-lang-key="privacy_li1"><strong>기기 정보 및 서비스 이용 기록:</strong> IP 주소, 쿠키, 브라우저 종류, 운영체제, 방문 일시, 서비스 이용 기록</li>
+                        <li data-lang-key="privacy_li2"><strong>목적:</strong> 서비스 품질 개선, 통계 분석을 통한 사용자 경험 최적화, 부정 이용 방지, 그리고 구글 애드센스를 통한 맞춤형 광고 제공</li>
+                    </ul>
+
+                    <h2 data-lang-key="privacy_h2_2">2. 쿠키(Cookie)에 관한 사항</h2>
+                    <p data-lang-key="privacy_p3">저희 서비스는 사용자에게 더 나은 경험을 제공하기 위해 쿠키를 사용합니다. 쿠키는 사용자의 언어 설정, 관심 목록 등의 기본 설정을 저장하는 데 사용됩니다. 또한, 구글 애드센스와 같은 제3자 광고 파트너가 맞춤형 광고를 제공하기 위해 쿠키를 사용할 수 있습니다. 사용자는 웹 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 이 경우 일부 서비스 이용에 불편이 있을 수 있습니다.</p>
+                    
+                    <h2 data-lang-key="privacy_h2_3">3. 개인정보의 보유 및 이용기간</h2>
+                    <p data-lang-key="privacy_p4">자동으로 수집된 정보는 관련 법령에 정해진 기간 동안, 또는 서비스 통계 분석 및 품질 개선의 목적이 달성될 때까지 보유 및 이용됩니다. 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다.</p>
                  </div>
             </div>
         </section>
@@ -200,7 +222,6 @@
     
     <script>
         // --- API 키 설정 ---
-        // CoinGecko API 키는 그대로 유지합니다.
         const coingeckoApiKey = 'CG-xmGqWe2JgRKTWjf1WSPT9saQ';
 
         // --- 페이지 네비게이션 로직 ---
@@ -251,7 +272,6 @@
             const newsPrompt = lang === 'ko' ? "전 세계의 주요 암호화폐 관련 최신 뉴스 5개를 찾아서, 국내 및 해외 뉴스를 적절히 섞어 목록을 만들어주세요. 각 뉴스의 제목(title)과 원문 링크(url)를 알려주세요." : "Find 5 major, recent cryptocurrency news headlines from various global English-speaking sources. Provide the title and the original URL for each.";
             
             try {
-                // 1. 뉴스 헤드라인 가져오기
                 const newsPayload = {
                     contents: [{ parts: [{ text: newsPrompt }] }],
                     tools: [{ "google_search": {} }],
@@ -279,7 +299,6 @@
                     newsListContent.innerHTML = `<p class="text-gray-400">${t('no_news_found')}</p>`;
                 }
 
-                // 2. 뉴스 기반으로 AI 의견 생성하기
                 const headlines = newsArticles.map(a => a.title).join('\n - ');
                 const opinionPrompt = lang === 'ko' ? `다음은 최신 암호화폐 관련 뉴스 헤드라인 목록입니다:\n - ${headlines}\n\n위 뉴스들을 바탕으로, 오늘 암호화폐 시장의 전반적인 분위기와 투자자들이 주목해야 할 핵심 포인트를 요약하여 전문가의 의견을 마크다운 형식으로 작성해주세요. 신뢰감 있는 톤으로 작성해주세요.` : `Here is a list of recent cryptocurrency news headlines:\n - ${headlines}\n\nBased on these news headlines, please write an expert opinion summarizing the overall market sentiment today and the key points investors should pay attention to. Please use Markdown format and maintain a credible, authoritative tone.`;
                 
@@ -385,7 +404,31 @@
                 api_key_error_server: "서버에 API 키가 설정되지 않았습니다. 사이트 관리자에게 문의하세요.",
                 briefing_error: "브리핑을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.",
                 opinion_error: "의견을 생성하지 못했습니다.",
-                no_news_found: "관련 뉴스를 찾을 수 없습니다."
+                no_news_found: "관련 뉴스를 찾을 수 없습니다.",
+                about_title: "Oracoin: 당신의 손안의 암호화폐 분석가",
+                about_p1: "Oracoin은 복잡하고 변동성이 높은 암호화폐 시장에서, 데이터에 기반한 현명한 결정을 내릴 수 있도록 돕는 강력한 올인원 분석 도구입니다. 매일 쏟아지는 정보의 홍수 속에서 길을 잃지 않도록, Oracoin은 당신을 위한 명확한 나침반이 되어 드립니다.",
+                about_h2: "우리의 미션",
+                about_p2: "우리의 미션은 단 하나, 정보의 비대칭성을 해소하여 누구나 공평하게 투자 기회를 잡을 수 있는 환경을 만드는 것입니다. 소수의 전문가만 접근 가능했던 복잡한 분석 도구와 인사이트를, 이제 Oracoin을 통해 누구나 쉽게 활용할 수 있습니다.",
+                about_h3_1: "Oracoin의 핵심 기능",
+                about_li1: "<strong>실시간 데이터 분석:</strong> 전 세계 주요 코인의 가격, 변동률, 기술적 지표(RSI, 이동평균선)를 실시간으로 추적하고 객관적인 평가를 제공합니다.",
+                about_li2: "<strong>AI 뉴스 브리핑:</strong> 최신 국내외 뉴스를 AI가 분석하여, 시장의 전반적인 분위기와 핵심 포인트를 요약한 '오늘의 브리핑'을 매일 제공합니다.",
+                about_li3: "<strong>완벽한 개인화:</strong> 최대 6개의 관심 코인을 직접 선택하고, 관심 목록, 검색, 정렬 기능을 통해 자신만의 맞춤형 대시보드를 구성할 수 있습니다.",
+                about_h3_2: "우리의 약속",
+                about_p3: "Oracoin은 투자 조언이나 권유를 하지 않습니다. 우리는 오직 객관적이고 가치 있는 데이터를 제공하여, 최종적으로 당신이 더 나은 투자 결정을 내릴 수 있도록 돕는 것에 집중합니다. 당신의 성공적인 투자 여정에 Oracoin이 함께하겠습니다.",
+                contact_title: "Contact Us",
+                contact_p1: "Oracoin에 대한 질문, 파트너십 제안, 혹은 소중한 피드백이 있으신가요? 언제든지 아래 이메일로 연락 주시면 저희 팀이 최대한 빠르게 확인하고 답변해 드리겠습니다.",
+                contact_email_label: "문의 이메일",
+                privacy_title: "개인정보처리방침",
+                privacy_effective_date: "시행일: 2025년 9월 17일",
+                privacy_p1: "Oracoin(이하 '서비스')은 사용자의 개인정보를 소중하게 생각하며, 정보통신망 이용촉진 및 정보보호 등에 관한 법률을 비롯한 모든 개인정보보호 관련 법규를 준수하고 있습니다.",
+                privacy_h2_1: "1. 수집하는 개인정보 항목 및 목적",
+                privacy_p2: "저희 서비스는 별도의 회원가입 절차가 없으므로, 이름, 이메일 주소 등 개인을 식별할 수 있는 어떠한 정보도 의도적으로 수집하지 않습니다. 다만, 서비스 이용 과정에서 다음과 같은 정보가 자동으로 생성되어 수집될 수 있습니다.",
+                privacy_li1: "<strong>기기 정보 및 서비스 이용 기록:</strong> IP 주소, 쿠키, 브라우저 종류, 운영체제, 방문 일시, 서비스 이용 기록",
+                privacy_li2: "<strong>목적:</strong> 서비스 품질 개선, 통계 분석을 통한 사용자 경험 최적화, 부정 이용 방지, 그리고 구글 애드센스를 통한 맞춤형 광고 제공",
+                privacy_h2_2: "2. 쿠키(Cookie)에 관한 사항",
+                privacy_p3: "저희 서비스는 사용자에게 더 나은 경험을 제공하기 위해 쿠키를 사용합니다. 쿠키는 사용자의 언어 설정, 관심 목록 등의 기본 설정을 저장하는 데 사용됩니다. 또한, 구글 애드센스와 같은 제3자 광고 파트너가 맞춤형 광고를 제공하기 위해 쿠키를 사용할 수 있습니다. 사용자는 웹 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 이 경우 일부 서비스 이용에 불편이 있을 수 있습니다.",
+                privacy_h2_3: "3. 개인정보의 보유 및 이용기간",
+                privacy_p4: "자동으로 수집된 정보는 관련 법령에 정해진 기간 동안, 또는 서비스 통계 분석 및 품질 개선의 목적이 달성될 때까지 보유 및 이용됩니다. 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다."
             },
             en: {
                 sidebar_title: "Coin List (Top 100)",
@@ -426,7 +469,31 @@
                 api_key_error_server: "API key is not configured on the server. Please contact the site administrator.",
                 briefing_error: "Failed to generate briefing. Please try again later.",
                 opinion_error: "Could not generate opinion.",
-                no_news_found: "No related news found."
+                no_news_found: "No related news found.",
+                about_title: "Oracoin: Your Crypto Analyst in Hand",
+                about_p1: "Oracoin is a powerful, all-in-one analysis tool designed to help you make smarter, data-driven decisions in the complex and volatile cryptocurrency market. To prevent you from getting lost in the daily flood of information, Oracoin serves as your clear compass.",
+                about_h2: "Our Mission",
+                about_p2: "We have one mission: to resolve information asymmetry and create an environment where everyone has a fair chance to seize investment opportunities. Complex analysis tools and insights, once accessible only to a few experts, are now easily available to everyone through Oracoin.",
+                about_h3_1: "Oracoin's Core Features",
+                about_li1: "<strong>Real-time Data Analysis:</strong> We track and provide objective evaluations of major global coins' prices, percentage changes, and technical indicators (RSI, Moving Average) in real-time.",
+                about_li2: "<strong>AI News Briefing:</strong> Our AI analyzes the latest domestic and international news to provide a daily 'Today's Briefing' that summarizes the overall market sentiment and key takeaways.",
+                about_li3: "<strong>Complete Personalization:</strong> Select up to six coins of interest and configure your own custom dashboard with watchlist, search, and sort functionalities.",
+                about_h3_2: "Our Promise",
+                about_p3: "Oracoin does not provide investment advice or recommendations. We focus solely on delivering objective, valuable data to ultimately help you make better investment decisions. Oracoin will be with you on your successful investment journey.",
+                contact_title: "Contact Us",
+                contact_p1: "Do you have questions, partnership proposals, or valuable feedback about Oracoin? Please feel free to contact us at the email below, and our team will review and respond as quickly as possible.",
+                contact_email_label: "Contact Email",
+                privacy_title: "Privacy Policy",
+                privacy_effective_date: "Effective Date: September 17, 2025",
+                privacy_p1: "Oracoin (the 'Service') values your privacy and complies with all relevant privacy laws and regulations, including the Act on Promotion of Information and Communications Network Utilization and Information Protection, etc.",
+                privacy_h2_1: "1. Information We Collect and Why",
+                privacy_p2: "Our Service does not require user registration, and we do not intentionally collect any personally identifiable information (such as name, email address, etc.). However, the following information may be automatically generated and collected during your use of the service:",
+                privacy_li1: "<strong>Device Information and Service Usage Logs:</strong> IP address, cookies, browser type, operating system, visit dates, service usage records.",
+                privacy_li2: "<strong>Purpose:</strong> To improve service quality, optimize user experience through statistical analysis, prevent fraudulent use, and deliver personalized advertising through Google AdSense.",
+                privacy_h2_2: "2. Regarding Cookies",
+                privacy_p3: "Our Service uses cookies to provide a better user experience. Cookies are used to store basic settings such as your language preference and watchlist. Additionally, third-party advertising partners like Google AdSense may use cookies to serve personalized ads. You can refuse to accept cookies through your web browser's settings, but doing so may cause inconvenience in using some services.",
+                privacy_h2_3: "3. Data Retention and Use Period",
+                privacy_p4: "Automatically collected information is retained and used for the period stipulated by relevant laws or until the purposes of statistical analysis and service quality improvement are achieved. After the purpose is achieved, the information is promptly destroyed."
             }
         };
 
