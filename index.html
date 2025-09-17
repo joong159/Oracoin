@@ -215,149 +215,13 @@
     </footer>
     
     <!-- 모달 -->
-    <div id="modal-overlay" class="fixed inset-0 items-center justify-center hidden z-50 p-4"><div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-auto relative transform transition-all duration-300 scale-95 opacity-0"><button id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button></div></div>
+    <div id="modal-overlay" class="fixed inset-0 items-center justify-center hidden z-50 p-4"><div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-auto relative transform transition-all duration-300 scale-95 opacity-0"><button id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl">&times;</button></div></div>
     
     <script>
         // --- API 키 설정 ---
         const coingeckoApiKey = 'CG-xmGqWe2JgRKTWjf1WSPT9saQ';
         
-        // --- 페이지 네비게이션 로직 ---
-        const pageContainer = document.getElementById('page-container');
-        const pageSections = document.querySelectorAll('.page-section');
-        const navLinks = document.querySelectorAll('.nav-link');
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileMenu = document.getElementById('mobile-menu');
-
-        function showPage(pageId) {
-            pageSections.forEach(section => section.classList.remove('active'));
-            const targetPage = document.getElementById(pageId + '-page');
-            if(targetPage) targetPage.classList.add('active');
-            
-            navLinks.forEach(link => link.classList.toggle('active', link.dataset.page === pageId));
-            
-            if (pageId === 'blog') {
-                renderBriefingCoinList();
-            }
-
-            window.scrollTo(0, 0); 
-            mobileMenu.classList.add('hidden'); 
-        }
-
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                showPage(e.target.dataset.page);
-            });
-        });
-        
-        mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
-
-        // --- AI 브리핑 로직 ---
-        function renderBriefingCoinList() {
-            const container = document.getElementById('briefing-coin-list');
-            const fetchButton = document.getElementById('fetch-ai-briefing');
-            
-            if (state.selectedCoinIds.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-sm">${t('add_coin_for_briefing')}</p>`;
-                fetchButton.disabled = true;
-                return;
-            }
-
-            container.innerHTML = '';
-            fetchButton.disabled = false;
-            state.selectedCoinIds.forEach(id => {
-                const coin = state.allCoins.find(c => c.id === id);
-                if (coin) {
-                    container.innerHTML += `<span class="bg-gray-700 text-sm font-medium px-3 py-1 rounded-full flex items-center"><img src="${coin.image}" class="w-4 h-4 mr-2 rounded-full">${coin.name}</span>`;
-                }
-            });
-        }
-
-        async function fetchPersonalizedBriefing() {
-            const resultsContainer = document.getElementById('ai-briefing-results-container');
-            const fetchButton = document.getElementById('fetch-ai-briefing');
-
-            fetchButton.disabled = true;
-            resultsContainer.innerHTML = `<div class="flex items-center justify-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div><p class="ml-4 text-lg">${t('ai_loading')}</p></div>`;
-
-            const coinNames = state.selectedCoinIds.map(id => {
-                const coin = state.allCoins.find(c => c.id === id);
-                return coin ? coin.name : id;
-            });
-            
-            try {
-                const payload = {
-                    lang: state.language,
-                    coins: coinNames
-                };
-
-                const response = await fetch('/api/briefing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    if (response.status === 500) throw new Error(t('api_key_error_server'));
-                    throw new Error(`Briefing fetching failed with status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                const analysisData = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '[]');
-                
-                renderBriefingResults(analysisData);
-
-            } catch (error) {
-                console.error("AI 브리핑 실패:", error);
-                resultsContainer.innerHTML = `<p class="text-red-400 text-center">${error.message || t('briefing_error')}</p>`;
-            } finally {
-                fetchButton.disabled = false;
-            }
-        }
-
-        function renderBriefingResults(data) {
-            const container = document.getElementById('ai-briefing-results-container');
-            container.innerHTML = '';
-
-            if (data.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-center">${t('no_analysis_data')}</p>`;
-                return;
-            }
-
-            data.forEach(item => {
-                const recClass = item.analysis.recommendation.includes(t('rec_buy_keyword')) ? 'bg-green-500/10 text-green-400' : 
-                                 item.analysis.recommendation.includes(t('rec_sell_keyword')) ? 'bg-red-500/10 text-red-400' :
-                                 'bg-gray-500/10 text-gray-400';
-
-                const cardHtml = `
-                    <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-6 prose max-w-none">
-                        <h2 class="!mt-0 !mb-4">${item.coinName} AI 분석 리포트</h2>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            <div class="bg-gray-700/50 p-3 rounded-md">
-                                <h4 class="text-sm font-bold uppercase text-gray-400 !mt-0 !mb-1">${t('recommendation_title')}</h4>
-                                <p class="text-lg font-bold ${recClass} px-2 py-1 rounded-md inline-block !my-0">${item.analysis.recommendation}</p>
-                            </div>
-                            <div class="bg-gray-700/50 p-3 rounded-md">
-                                <h4 class="text-sm font-bold uppercase text-gray-400 !mt-0 !mb-1">${t('price_target_title')}</h4>
-                                <p class="text-lg font-bold !my-0">${item.analysis.priceTarget}</p>
-                            </div>
-                        </div>
-
-                        <h3 class="!mb-2">${t('ai_opinion_title')}</h3>
-                        <div class="text-gray-300">${item.analysis.opinion.replace(/\n/g, '<br>')}</div>
-
-                        <h3 class="mt-6 !mb-2">${t('related_news_title')}</h3>
-                        <ul class="!pl-5">
-                            ${(item.relatedNews || []).map(news => `<li><a href="${news.url}" target="_blank" rel="noopener noreferrer">${news.title}</a></li>`).join('')}
-                        </ul>
-                    </div>
-                `;
-                container.innerHTML += cardHtml;
-            });
-        }
-        
-        // --- Oracoin 분석 도구 로직 ---
+        // --- 전역 변수 및 상태 관리 ---
         const elements = {
             sidebar: document.getElementById('sidebar'),
             sidebarToggle: document.getElementById('sidebar-toggle'),
@@ -375,6 +239,11 @@
             limitMessage: document.getElementById('limit-message'),
             langButtons: document.querySelectorAll('.lang-btn'),
             fetchBriefingBtn: document.getElementById('fetch-ai-briefing'),
+            pageContainer: document.getElementById('page-container'),
+            pageSections: document.querySelectorAll('.page-section'),
+            navLinks: document.querySelectorAll('.nav-link'),
+            mobileMenuButton: document.getElementById('mobile-menu-button'),
+            mobileMenu: document.getElementById('mobile-menu'),
         };
         let chartInstance = null;
         const state = {
@@ -430,6 +299,7 @@
                 no_analysis_data: "분석 데이터를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
                 ai_opinion_title: "AI 종합 의견",
                 related_news_title: "관련 뉴스",
+                ai_loading: "AI가 최신 뉴스를 분석하고 있습니다...",
                 api_key_error_server: "서버에 API 키가 설정되지 않았습니다. 사이트 관리자에게 문의하세요.",
                 briefing_error: "브리핑을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.",
                 opinion_error: "의견을 생성하지 못했습니다.",
@@ -532,75 +402,165 @@
             }
         };
 
+        // --- 유틸리티 및 페이지 관리 ---
         function t(key) { return translations[state.language][key] || key; }
 
-        async function setLanguage(lang) {
-            if (['ko', 'en'].includes(lang)) {
-                state.language = lang;
-                state.currency = lang === 'ko' ? 'krw' : 'usd';
-                localStorage.setItem('cryptoLang', lang);
-                document.documentElement.lang = lang;
-                
-                elements.langButtons.forEach(btn => {
-                    btn.classList.toggle('active', btn.id === `lang-${lang}`);
+        function showPage(pageId) {
+            elements.pageSections.forEach(section => section.classList.remove('active'));
+            const targetPage = document.getElementById(pageId + '-page');
+            if (targetPage) targetPage.classList.add('active');
+            
+            elements.navLinks.forEach(link => link.classList.toggle('active', link.dataset.page === pageId));
+            
+            if (pageId === 'blog') {
+                renderBriefingCoinList();
+            }
+
+            window.scrollTo(0, 0); 
+            elements.mobileMenu.classList.add('hidden'); 
+        }
+
+        // --- AI 브리핑 기능 ---
+        function renderBriefingCoinList() {
+            const container = document.getElementById('briefing-coin-list');
+            const fetchButton = document.getElementById('fetch-ai-briefing');
+            
+            if (state.selectedCoinIds.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-sm">${t('add_coin_for_briefing')}</p>`;
+                fetchButton.disabled = true;
+                return;
+            }
+
+            container.innerHTML = '';
+            fetchButton.disabled = false;
+            state.selectedCoinIds.forEach(id => {
+                const coin = state.allCoins.find(c => c.id === id);
+                if (coin) {
+                    container.innerHTML += `<span class="bg-gray-700 text-sm font-medium px-3 py-1 rounded-full flex items-center"><img src="${coin.image}" class="w-4 h-4 mr-2 rounded-full">${coin.name}</span>`;
+                }
+            });
+        }
+
+        async function fetchPersonalizedBriefing() {
+            const resultsContainer = document.getElementById('ai-briefing-results-container');
+            const fetchButton = document.getElementById('fetch-ai-briefing');
+
+            fetchButton.disabled = true;
+            resultsContainer.innerHTML = `<div class="flex items-center justify-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div><p class="ml-4 text-lg">${t('ai_loading')}</p></div>`;
+
+            const coinNames = state.selectedCoinIds.map(id => {
+                const coin = state.allCoins.find(c => c.id === id);
+                return coin ? coin.name : id;
+            });
+            
+            try {
+                const payload = { lang: state.language, coins: coinNames };
+                const response = await fetch('/api/briefing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
 
-                document.querySelectorAll('[data-lang-key]').forEach(el => {
-                    const key = el.dataset.langKey;
-                    if(el.placeholder) {
-                        el.placeholder = t(key);
-                    } else {
-                        el.textContent = t(key);
-                    }
-                });
+                if (!response.ok) {
+                    if (response.status === 500) throw new Error(t('api_key_error_server'));
+                    throw new Error(`Briefing fetching failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
                 
-                await fetchSidebarCoins();
-                await loadData();
+                let analysisData;
+                try {
+                     analysisData = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || '[]');
+                } catch(e) {
+                    console.error("Failed to parse AI response JSON:", e);
+                    throw new Error(t('briefing_error'));
+                }
+                
+                renderBriefingResults(analysisData);
+
+            } catch (error) {
+                console.error("AI 브리핑 실패:", error);
+                resultsContainer.innerHTML = `<p class="text-red-400 text-center">${error.message}</p>`;
+            } finally {
+                fetchButton.disabled = false;
             }
+        }
+
+        function renderBriefingResults(data) {
+            const container = document.getElementById('ai-briefing-results-container');
+            container.innerHTML = '';
+
+            if (!Array.isArray(data) || data.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-center">${t('no_analysis_data')}</p>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const rec = item.analysis.recommendation || "";
+                const recClass = rec.includes(t('rec_buy_keyword')) ? 'bg-green-500/10 text-green-400' : 
+                                 rec.includes(t('rec_sell_keyword')) ? 'bg-red-500/10 text-red-400' :
+                                 'bg-gray-500/10 text-gray-400';
+
+                const cardHtml = `
+                    <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-6 prose max-w-none">
+                        <h2 class="!mt-0 !mb-4">${item.coinName} AI 분석 리포트</h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 not-prose">
+                            <div class="bg-gray-700/50 p-3 rounded-md">
+                                <h4 class="text-sm font-bold uppercase text-gray-400 mt-0 mb-1">${t('recommendation_title')}</h4>
+                                <p class="text-lg font-bold ${recClass} px-2 py-1 rounded-md inline-block my-0">${rec}</p>
+                            </div>
+                            <div class="bg-gray-700/50 p-3 rounded-md">
+                                <h4 class="text-sm font-bold uppercase text-gray-400 mt-0 mb-1">${t('price_target_title')}</h4>
+                                <p class="text-lg font-bold my-0">${item.analysis.priceTarget}</p>
+                            </div>
+                        </div>
+
+                        <h3 class="!mb-2">${t('ai_opinion_title')}</h3>
+                        <div class="text-gray-300">${(item.analysis.opinion || "").replace(/\n/g, '<br>')}</div>
+
+                        <h3 class="mt-6 !mb-2">${t('related_news_title')}</h3>
+                        <ul class="!pl-5">
+                            ${(item.relatedNews || []).map(news => `<li><a href="${news.url}" target="_blank" rel="noopener noreferrer">${news.title}</a></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        // --- 데이터 로딩 및 렌더링 ---
+        async function setLanguage(lang) {
+            if (!['ko', 'en'].includes(lang)) return;
+            state.language = lang;
+            state.currency = lang === 'ko' ? 'krw' : 'usd';
+            localStorage.setItem('cryptoLang', lang);
+            document.documentElement.lang = lang;
+            
+            elements.langButtons.forEach(btn => btn.classList.toggle('active', btn.id === `lang-${lang}`));
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.dataset.langKey;
+                if(el.placeholder) el.placeholder = t(key);
+                else el.textContent = t(key);
+            });
+            
+            await fetchSidebarCoins();
+            await loadData();
         }
 
         function renderLoadingSkeletons() {
             elements.loadingIndicator.innerHTML = '';
             for (let i = 0; i < state.selectedCoinIds.length; i++) {
-                const skeletonCard = `
-                    <div class="skeleton-card animate-pulse">
-                        <div class="flex justify-between items-start">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full skeleton"></div>
-                                <div class="ml-3">
-                                    <div class="w-24 h-5 mb-1 skeleton"></div>
-                                    <div class="w-16 h-4 skeleton"></div>
-                                </div>
-                            </div>
-                            <div class="w-6 h-6 rounded-full skeleton"></div>
-                        </div>
-                        <div class="mt-4">
-                            <div class="w-40 h-8 mb-2 skeleton"></div>
-                            <div class="w-24 h-5 skeleton"></div>
-                        </div>
-                        <div class="mt-4 pt-4 border-t border-gray-700">
-                             <div class="w-32 h-5 mb-2 skeleton"></div>
-                             <div class="flex justify-between">
-                                <div class="w-20 h-4 skeleton"></div>
-                                <div class="w-20 h-4 skeleton"></div>
-                             </div>
-                        </div>
-                    </div>`;
-                elements.loadingIndicator.innerHTML += skeletonCard;
+                elements.loadingIndicator.innerHTML += `<div class="skeleton-card animate-pulse"><div class="flex justify-between items-start"><div class="flex items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="ml-3"><div class="w-24 h-5 mb-1 skeleton"></div><div class="w-16 h-4 skeleton"></div></div></div><div class="w-6 h-6 rounded-full skeleton"></div></div><div class="mt-4"><div class="w-40 h-8 mb-2 skeleton"></div><div class="w-24 h-5 skeleton"></div></div><div class="mt-4 pt-4 border-t border-gray-700"><div class="w-32 h-5 mb-2 skeleton"></div><div class="flex justify-between"><div class="w-20 h-4 skeleton"></div><div class="w-20 h-4 skeleton"></div></div></div></div>`;
             }
         }
         
         function render() {
-            let coinsToRender = [...state.displayedCoins];
-            if (state.watchlistOnly) {
-                coinsToRender = coinsToRender.filter(c => state.favorites.includes(c.id));
-            }
-            if (state.searchTerm) {
-                coinsToRender = coinsToRender.filter(c =>
-                    c.name.toLowerCase().includes(state.searchTerm.toLowerCase()) ||
-                    c.symbol.toLowerCase().includes(state.searchTerm.toLowerCase())
-                );
-            }
+            let coinsToRender = state.displayedCoins.filter(c => {
+                const searchMatch = state.searchTerm === '' || c.name.toLowerCase().includes(state.searchTerm.toLowerCase()) || c.symbol.toLowerCase().includes(state.searchTerm.toLowerCase());
+                const watchlistMatch = !state.watchlistOnly || state.favorites.includes(c.id);
+                return searchMatch && watchlistMatch;
+            });
 
             coinsToRender.sort((a, b) => {
                 if (state.sortBy === 'name') return a.name.localeCompare(b.name);
@@ -628,49 +588,13 @@
                 const isFavorite = state.favorites.includes(coin.id);
                 const priceChange = coin.price_change_percentage_24h || 0;
                 const changeColor = priceChange >= 0 ? 'text-green-400' : 'text-red-400';
-                const formattedPrice = new Intl.NumberFormat(state.language, {
-                    style: 'currency',
-                    currency: state.currency,
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: priceChange > 100 ? 0 : 2
-                }).format(coin.current_price);
+                const formattedPrice = new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, minimumFractionDigits: 2, maximumFractionDigits: priceChange > 100 ? 0 : 2 }).format(coin.current_price);
                 
                 const { evalClass, evalText } = getEvaluation(coin.rsi, coin.ma_20_day_comparison);
                 const { rsiStatus, rsiText } = getRsiStatus(coin.rsi);
                 const { maStatus, maText } = getMaStatus(coin.ma_20_day_comparison);
 
-                const card = `
-                    <div class="bg-gray-800 rounded-xl p-5 shadow-lg border border-gray-700 hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer" data-coin-id="${coin.id}">
-                        <div class="flex justify-between items-start">
-                            <div class="flex items-center">
-                                <img src="${coin.image}" alt="${coin.name}" class="w-10 h-10 rounded-full">
-                                <div class="ml-3">
-                                    <h3 class="font-bold text-lg">${coin.name}</h3>
-                                    <p class="text-sm text-gray-400 uppercase">${coin.symbol}</p>
-                                </div>
-                            </div>
-                             <div class="flex items-center">
-                                <span class="star-icon text-2xl ${isFavorite ? 'favorited' : 'text-gray-600'}" data-id="${coin.id}">★</span>
-                                <button class="remove-coin-btn ml-2 text-gray-500 hover:text-red-500" data-id="${coin.id}">&times;</button>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <p class="text-3xl font-bold">${formattedPrice}</p>
-                            <p class="text-md ${changeColor}">${priceChange.toFixed(2)}%</p>
-                        </div>
-                        <div class="mt-4 pt-4 border-t border-gray-700">
-                             <p class="text-xs text-gray-400 font-bold mb-2 uppercase">${t('evaluation')}</p>
-                             <div class="flex justify-between items-center mb-2">
-                                <p class="font-bold text-lg ${evalClass}">${evalText}</p>
-                            </div>
-                             <div class="text-xs space-y-1">
-                                <div class="flex justify-between"><span class="text-gray-400">RSI:</span> <span class="${rsiStatus}">${rsiText} (${coin.rsi ? coin.rsi.toFixed(1) : 'N/A'})</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">MA(20):</span> <span class="${maStatus}">${maText}</span></div>
-                             </div>
-                        </div>
-                    </div>
-                `;
-                elements.cryptoContainer.innerHTML += card;
+                elements.cryptoContainer.innerHTML += `<div class="bg-gray-800 rounded-xl p-5 shadow-lg border border-gray-700 hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer" data-coin-id="${coin.id}"><div class="flex justify-between items-start"><div class="flex items-center"><img src="${coin.image}" alt="${coin.name}" class="w-10 h-10 rounded-full"><div class="ml-3"><h3 class="font-bold text-lg">${coin.name}</h3><p class="text-sm text-gray-400 uppercase">${coin.symbol}</p></div></div><div class="flex items-center"><span class="star-icon text-2xl ${isFavorite ? 'favorited' : 'text-gray-600'}" data-id="${coin.id}">★</span><button class="remove-coin-btn ml-2 text-gray-500 hover:text-red-500" data-id="${coin.id}">&times;</button></div></div><div class="mt-4"><p class="text-3xl font-bold">${formattedPrice}</p><p class="text-md ${changeColor}">${priceChange.toFixed(2)}%</p></div><div class="mt-4 pt-4 border-t border-gray-700"><p class="text-xs text-gray-400 font-bold mb-2 uppercase">${t('evaluation')}</p><div class="flex justify-between items-center mb-2"><p class="font-bold text-lg ${evalClass}">${evalText}</p></div><div class="text-xs space-y-1"><div class="flex justify-between"><span class="text-gray-400">RSI:</span> <span class="${rsiStatus}">${rsiText} (${coin.rsi ? coin.rsi.toFixed(1) : 'N/A'})</span></div><div class="flex justify-between"><span class="text-gray-400">MA(20):</span> <span class="${maStatus}">${maText}</span></div></div></div></div>`;
             });
         }
         
@@ -678,16 +602,7 @@
             elements.coinListSidebar.innerHTML = '';
             state.allCoins.forEach(coin => {
                 const isSelected = state.selectedCoinIds.includes(coin.id);
-                const item = `
-                    <div class="flex items-center justify-between p-2 rounded-md hover:bg-gray-700">
-                        <div class="flex items-center overflow-hidden">
-                             <img src="${coin.image}" class="w-6 h-6 rounded-full mr-2">
-                             <span class="font-medium text-sm truncate">${coin.name}</span>
-                        </div>
-                        <button class="add-coin-btn text-2xl ${isSelected ? 'text-gray-500 cursor-not-allowed' : 'text-green-400 hover:text-green-300'}" data-id="${coin.id}" ${isSelected ? 'disabled' : ''}>+</button>
-                    </div>
-                `;
-                elements.coinListSidebar.innerHTML += item;
+                elements.coinListSidebar.innerHTML += `<div class="flex items-center justify-between p-2 rounded-md hover:bg-gray-700"><div class="flex items-center overflow-hidden"><img src="${coin.image}" class="w-6 h-6 rounded-full mr-2"><span class="font-medium text-sm truncate">${coin.name}</span></div><button class="add-coin-btn text-2xl ${isSelected ? 'text-gray-500 cursor-not-allowed' : 'text-green-400 hover:text-green-300'}" data-id="${coin.id}" ${isSelected ? 'disabled' : ''}>+</button></div>`;
             });
         }
         
@@ -696,7 +611,7 @@
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
                 const { timestamp, data } = JSON.parse(cached);
-                if (Date.now() - timestamp < 24 * 60 * 60 * 1000) { // 24 hours cache
+                if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
                     state.allCoins = data;
                     renderSidebar();
                     return;
@@ -729,10 +644,9 @@
                 const marketData = await marketResponse.json();
 
                 const coinDataPromises = marketData.map(async (coin) => {
-                    await new Promise(resolve => setTimeout(resolve, 300)); // Rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 350));
                     const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${state.currency}&days=30&x_cg_demo_api_key=${coingeckoApiKey}`);
                     if (!chartResponse.ok) {
-                        console.error(`${coin.name}의 차트 데이터를 가져오는 데 실패했습니다.`);
                         return { ...coin, rsi: 50, ma_20_day_comparison: 'neutral' }; 
                     }
                     const chartData = await chartResponse.json();
@@ -756,22 +670,16 @@
             }
         }
 
+        // --- 분석 및 유틸리티 함수 ---
         function calculateRSI(prices) {
             if (prices.length < 15) return 50;
-            let gains = 0;
-            let losses = 0;
+            let gains = 0; let losses = 0;
             for (let i = 1; i < prices.length; i++) {
-                const diff = prices[i] - prices[i - 1];
-                if (diff > 0) {
-                    gains += diff;
-                } else {
-                    losses -= diff;
-                }
+                const diff = prices[i] - prices[i-1];
+                diff > 0 ? gains += diff : losses -= diff;
             }
-            const avgGain = gains / 14;
-            const avgLoss = losses / 14;
-            if (avgLoss === 0) return 100;
-            const rs = avgGain / avgLoss;
+            if (losses === 0) return 100;
+            const rs = (gains / 14) / (losses / 14);
             return 100 - (100 / (1 + rs));
         }
 
@@ -802,11 +710,8 @@
         
         function handleFavorite(id) {
             const index = state.favorites.indexOf(id);
-            if (index > -1) {
-                state.favorites.splice(index, 1);
-            } else {
-                state.favorites.push(id);
-            }
+            if (index > -1) state.favorites.splice(index, 1);
+            else state.favorites.push(id);
             localStorage.setItem('cryptoFavorites', JSON.stringify(state.favorites));
             render();
         }
@@ -833,87 +738,22 @@
             renderSidebar();
         }
 
-        async function showModal(coinId) {
-            elements.modalOverlay.classList.remove('hidden');
-            elements.modalOverlay.classList.add('flex');
-            
-            const coin = state.displayedCoins.find(c => c.id === coinId);
-            if (!coin) return;
-
-            const modalHtml = `
-                <div class="flex items-center mb-4">
-                    <img src="${coin.image}" class="w-12 h-12 mr-4">
-                    <div>
-                        <h2 class="text-3xl font-bold">${coin.name}</h2>
-                        <p class="text-gray-400 uppercase">${coin.symbol}</p>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-6">
-                    <div><p class="text-gray-400">${t('price')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.current_price)}</p></div>
-                    <div><p class="text-gray-400">${t('change_24h')}</p><p class="font-bold text-lg ${coin.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}">${(coin.price_change_percentage_24h || 0).toFixed(2)}%</p></div>
-                    <div><p class="text-gray-400">${t('market_cap')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, notation: 'compact' }).format(coin.market_cap)}</p></div>
-                    <div><p class="text-gray-400">${t('high_24h')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.high_24h)}</p></div>
-                    <div><p class="text-gray-400">${t('low_24h')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.low_24h)}</p></div>
-                    <div><p class="text-gray-400">${t('total_volume')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, notation: 'compact' }).format(coin.total_volume)}</p></div>
-                </div>
-                <div class="mb-6"><canvas id="priceChart"></canvas></div>
-                <div class="prose max-w-none">
-                    <h3 class="font-bold" data-lang-key="description">${t('description')}</h3>
-                    <p id="coin-description" class="text-gray-300 text-sm">Loading...</p>
-                    <a id="homepage-link" href="#" target="_blank" class="text-blue-400 hover:underline" data-lang-key="homepage">${t('homepage')} &rarr;</a>
-                </div>
-            `;
-            elements.modalContent.innerHTML = modalHtml.replace('<button id="modal-close"', '<button id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl">&times;</button>');
-            
-            setTimeout(() => {
-                elements.modalContent.classList.remove('scale-95', 'opacity-0');
-            }, 10);
-            document.getElementById('modal-close').addEventListener('click', closeModal);
-
-
-            try {
-                const detailsResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
-                const details = await detailsResponse.json();
-                const description = details.description?.[state.language] || details.description?.en || 'Description not available.';
-                document.getElementById('coin-description').innerHTML = description.split('\n\n')[0];
-                const homepageLink = document.getElementById('homepage-link');
-                if(details.links?.homepage?.[0]) {
-                    homepageLink.href = details.links.homepage[0];
-                } else {
-                    homepageLink.style.display = 'none';
-                }
-
-
-                const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${state.currency}&days=7&interval=daily&x_cg_demo_api_key=${coingeckoApiKey}`);
-                const chartData = await chartResponse.json();
-                renderChart(chartData.prices);
-            } catch (error) {
-                console.error("Modal data loading failed:", error);
-                document.getElementById('coin-description').textContent = 'Failed to load details.';
-            }
-        }
-        
         function renderChart(prices) {
             const ctx = document.getElementById('priceChart').getContext('2d');
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
+            if (chartInstance) chartInstance.destroy();
             const labels = prices.map(p => new Date(p[0]).toLocaleDateString(state.language));
             const data = prices.map(p => p[1]);
 
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [{
                         label: t('chart_title'),
-                        data: data,
+                        data,
                         borderColor: 'rgba(59, 130, 246, 0.8)',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        pointRadius: 0,
-                        fill: true,
+                        borderWidth: 2, tension: 0.4, pointRadius: 0, fill: true,
                     }]
                 },
                 options: {
@@ -935,6 +775,37 @@
             }, 300);
         }
 
+        async function showModal(coinId) {
+            elements.modalOverlay.classList.remove('hidden');
+            elements.modalOverlay.classList.add('flex');
+            elements.modalContent.innerHTML = '<div class="absolute top-4 right-4"><button id="modal-close" class="text-gray-400 hover:text-white text-3xl">&times;</button></div><div class="flex items-center justify-center h-64"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div></div>';
+            elements.modalContent.querySelector('#modal-close').addEventListener('click', closeModal);
+            
+            const coin = state.displayedCoins.find(c => c.id === coinId);
+            if (!coin) { closeModal(); return; }
+
+            const detailsResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
+            const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${state.currency}&days=7&interval=daily&x_cg_demo_api_key=${coingeckoApiKey}`);
+            
+            if (!detailsResponse.ok || !chartResponse.ok) {
+                 elements.modalContent.innerHTML += '<p>Failed to load details.</p>';
+                 return;
+            }
+
+            const details = await detailsResponse.json();
+            const chartData = await chartResponse.json();
+            
+            const description = details.description?.[state.language] || details.description?.en || 'Description not available.';
+            const homepage = details.links?.homepage?.[0];
+
+            elements.modalContent.innerHTML = `<button id="modal-close" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl">&times;</button><div class="flex items-center mb-4"><img src="${coin.image}" class="w-12 h-12 mr-4"><div><h2 class="text-3xl font-bold">${coin.name}</h2><p class="text-gray-400 uppercase">${coin.symbol}</p></div></div><div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-6"><div><p class="text-gray-400">${t('price')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.current_price)}</p></div><div><p class="text-gray-400">${t('change_24h')}</p><p class="font-bold text-lg ${coin.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}">${(coin.price_change_percentage_24h || 0).toFixed(2)}%</p></div><div><p class="text-gray-400">${t('market_cap')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, notation: 'compact' }).format(coin.market_cap)}</p></div><div><p class="text-gray-400">${t('high_24h')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.high_24h)}</p></div><div><p class="text-gray-400">${t('low_24h')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.low_24h)}</p></div><div><p class="text-gray-400">${t('total_volume')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, notation: 'compact' }).format(coin.total_volume)}</p></div></div><div class="mb-6"><canvas id="priceChart"></canvas></div><div class="prose max-w-none"><h3 class="font-bold">${t('description')}</h3><p class="text-gray-300 text-sm">${description.split('\n\n')[0]}</p>${homepage ? `<a href="${homepage}" target="_blank" class="text-blue-400 hover:underline">${t('homepage')} &rarr;</a>` : ''}</div>`;
+            elements.modalContent.querySelector('#modal-close').addEventListener('click', closeModal);
+            renderChart(chartData.prices);
+
+            setTimeout(() => { elements.modalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
+        }
+        
+        // --- 이벤트 리스너 설정 ---
         function setupEventListeners() {
             elements.sidebarToggle.addEventListener('click', () => {
                 elements.sidebar.classList.toggle('-translate-x-full');
@@ -944,12 +815,7 @@
                 elements.sidebar.classList.add('-translate-x-full');
                 elements.sidebarOverlay.classList.add('hidden');
             });
-            
-            elements.searchInput.addEventListener('input', (e) => {
-                state.searchTerm = e.target.value;
-                render();
-            });
-
+            elements.searchInput.addEventListener('input', (e) => { state.searchTerm = e.target.value; render(); });
             elements.sortButtons.forEach(button => {
                 button.addEventListener('click', () => {
                     state.sortBy = button.id.split('-')[1];
@@ -958,68 +824,34 @@
                     render();
                 });
             });
-
-            elements.watchlistToggle.addEventListener('change', (e) => {
-                state.watchlistOnly = e.target.checked;
-                render();
-            });
-
+            elements.watchlistToggle.addEventListener('change', (e) => { state.watchlistOnly = e.target.checked; render(); });
             elements.cryptoContainer.addEventListener('click', (e) => {
                 const card = e.target.closest('[data-coin-id]');
                 const star = e.target.closest('.star-icon');
                 const removeBtn = e.target.closest('.remove-coin-btn');
-                
-                if(removeBtn) {
-                    e.stopPropagation();
-                    handleRemoveCoin(removeBtn.dataset.id);
-                    return;
-                }
-                if (star) {
-                    e.stopPropagation();
-                    handleFavorite(star.dataset.id);
-                    return;
-                }
-                if (card) {
-                    showModal(card.dataset.coin-id);
-                }
+                if(removeBtn) { e.stopPropagation(); handleRemoveCoin(removeBtn.dataset.id); return; }
+                if (star) { e.stopPropagation(); handleFavorite(star.dataset.id); return; }
+                if (card) showModal(card.dataset.coin-id);
             });
-            
             elements.coinListSidebar.addEventListener('click', e => {
                 const addBtn = e.target.closest('.add-coin-btn');
-                if(addBtn && !addBtn.disabled) {
-                    handleAddCoin(addBtn.dataset.id);
-                }
+                if(addBtn && !addBtn.disabled) handleAddCoin(addBtn.dataset.id);
             });
-
-            elements.modalOverlay.addEventListener('click', (e) => {
-                if (e.target === elements.modalOverlay) closeModal();
-            });
-            
-            elements.langButtons.forEach(button => {
-                button.addEventListener('click', () => setLanguage(button.id.split('-')[1]));
-            });
-
+            elements.modalOverlay.addEventListener('click', (e) => { if (e.target === elements.modalOverlay) closeModal(); });
+            elements.langButtons.forEach(button => button.addEventListener('click', () => setLanguage(button.id.split('-')[1])));
             elements.fetchBriefingBtn.addEventListener('click', fetchPersonalizedBriefing);
         }
         
+        // --- 앱 초기화 ---
         function initialize() {
             showPage('home');
-            
             const savedLang = localStorage.getItem('cryptoLang') || (navigator.language.startsWith('ko') ? 'ko' : 'en');
-            
             const savedFavorites = localStorage.getItem('cryptoFavorites');
-            if (savedFavorites) {
-                state.favorites = JSON.parse(savedFavorites);
-            }
-            
+            if (savedFavorites) state.favorites = JSON.parse(savedFavorites);
             const savedSelectedCoins = localStorage.getItem('selectedCoinIds');
-            if(savedSelectedCoins) {
-                state.selectedCoinIds = JSON.parse(savedSelectedCoins);
-            }
-            
+            if(savedSelectedCoins) state.selectedCoinIds = JSON.parse(savedSelectedCoins);
             setupEventListeners();
             setLanguage(savedLang);
-            
             if ('serviceWorker' in navigator) {
                 window.addEventListener('load', () => {
                     navigator.serviceWorker.register('/service-worker.js').catch(err => console.log('SW registration failed: ', err));
@@ -1028,7 +860,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', initialize);
-
     </script>
 </body>
 </html>
