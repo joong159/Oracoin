@@ -1,112 +1,973 @@
-/**
- * Cloudflare Pages Function for a secure API gateway.
- * This function acts as a proxy to the Google Gemini API.
- * It now handles personalized analysis requests for specific coins.
- * It reads the API key from a secure environment variable.
- */
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oracoin - 실시간 암호화폐 분석 및 인사이트</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#111827">
+    <meta name="google-adsense-account" content="ca-pub-5892610452724367">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5892610452724367"
+     crossorigin="anonymous"></script>
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #030712; }
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+        .nav-link.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
+        .prose { color: #d1d5db; }
+        .prose h1, .prose h2, .prose h3, .prose h4 { color: #f9fafb; }
+        .prose a { color: #60a5fa; }
+        .prose blockquote { border-left-color: #374151; }
+        .prose code { color: #f9fafb; background-color: #1f2937; padding: 0.2em 0.4em; border-radius: 0.3em;}
+        .prose pre { background-color: #1f2937; padding: 1em; border-radius: 0.5em; }
+        .prose ul > li::before { background-color: #60a5fa; }
+        .eval-buy { color: #22c55e; }
+        .eval-caution { color: #ef4444; }
+        .eval-neutral { color: #64748b; }
+        .control-btn.active { background-color: #3b82f6; color: white; box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+        .star-icon { cursor: pointer; transition: color 0.2s, transform 0.2s; }
+        .star-icon:hover { transform: scale(1.2); }
+        .star-icon.favorited { color: #facc15; }
+        #modal-overlay { background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
+        #coin-list-sidebar::-webkit-scrollbar { width: 4px; }
+        #coin-list-sidebar::-webkit-scrollbar-track { background: #1f2937; }
+        #coin-list-sidebar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
+        #limit-message { transition: opacity 0.5s; }
+        .skeleton-card { background-color: #1f2937; border-radius: 1rem; padding: 1.25rem; }
+        .skeleton { background-color: #374151; border-radius: 0.5rem; }
+        #watchlist-toggle:checked ~ .dot { transform: translateX(100%); background-color: #3b82f6; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
 
-export async function onRequestPost(context) {
-  // 1. Get the client's request body, which now includes language and a list of coins.
-  const { lang, coins } = await context.request.json();
+    <!-- 헤더 및 네비게이션 -->
+    <header class="bg-gray-900/80 backdrop-blur-sm sticky top-0 z-40 border-b border-gray-700">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="#" class="nav-link text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500" data-page="home">Oracoin</a>
+                </div>
+                <nav class="hidden md:flex md:space-x-8">
+                    <a href="#" class="nav-link text-gray-300 hover:text-white transition-colors duration-200 py-2" data-page="home">홈</a>
+                    <a href="#" class="nav-link text-gray-300 hover:text-white transition-colors duration-200 py-2" data-page="blog">AI 브리핑</a>
+                    <a href="#" class="nav-link text-gray-300 hover:text-white transition-colors duration-200 py-2" data-page="about">소개</a>
+                </nav>
+                <div class="flex items-center">
+                    <div class="flex space-x-2">
+                        <button id="lang-ko" class="lang-btn control-btn px-3 py-1 text-sm rounded-md">KO</button>
+                        <button id="lang-en" class="lang-btn control-btn px-3 py-1 text-sm rounded-md">EN</button>
+                    </div>
+                    <button id="mobile-menu-button" class="md:hidden p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 ml-4">
+                        <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700" data-page="home">홈</a>
+                <a href="#" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700" data-page="blog">AI 브리핑</a>
+                <a href="#" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:text-white hover:bg-gray-700" data-page="about">소개</a>
+            </div>
+        </div>
+    </header>
 
-  // Validate if the coin list is provided and is an array.
-  if (!coins || !Array.isArray(coins) || coins.length === 0) {
-    return new Response(JSON.stringify({ error: 'Coin list is required for analysis.' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+    <!-- 메인 컨텐츠 영역 -->
+    <div id="page-container">
+        <section id="home-page" class="page-section active">
+            <div class="flex h-screen-minus-header" style="height: calc(100vh - 4rem);">
+                <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden"></div>
+                <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-gray-800/80 backdrop-blur-sm p-4 flex flex-col h-full border-r border-gray-700 transition-transform duration-300 ease-in-out transform -translate-x-full lg:relative lg:translate-x-0 lg:h-auto">
+                    <h2 class="text-xl font-bold mb-2 text-center" data-lang-key="sidebar_title">코인 목록 (상위 100)</h2>
+                    <p id="limit-message" class="text-center text-red-400 text-xs mb-2 h-4 opacity-0" data-lang-key="limit_message">최대 6개까지 추가 가능합니다.</p>
+                    <div id="coin-list-sidebar" class="flex-grow overflow-y-auto"></div>
+                </aside>
+                <main class="flex-grow p-4 md:p-6 overflow-y-auto h-full relative">
+                    <button id="sidebar-toggle" class="fixed top-20 left-4 z-10 p-2 bg-gray-700/50 backdrop-blur-sm rounded-md text-white hover:bg-gray-600 transition-colors lg:hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                    <div class="container mx-auto max-w-7xl">
+                        <div class="bg-gray-800/50 backdrop-blur-sm border border-gray-700 p-4 rounded-xl mb-6 space-y-4 md:space-y-0 md:flex md:items-center md:justify-between">
+                            <div class="relative flex-grow md:max-w-xs">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3"><svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none"><path d="M21 21L15.803 15.803M15.803 15.803C17.2236 14.3824 18 12.4731 18 10.5C18 6.35786 14.6421 3 10.5 3C6.35786 3 3 6.35786 3 10.5C3 14.6421 6.35786 18 10.5 18C12.4731 18 14.3824 17.2236 15.803 15.803Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+                                <input id="search-input" type="text" data-lang-key="search_placeholder" placeholder="추가된 코인 검색..." class="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="flex items-center justify-center space-x-2">
+                                <button id="sort-name" class="sort-btn control-btn px-3 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-md hover:bg-gray-600" data-lang-key="sort_name">이름순</button>
+                                <button id="sort-price" class="sort-btn control-btn px-3 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-md hover:bg-gray-600" data-lang-key="sort_price">가격순</button>
+                                <button id="sort-change" class="sort-btn control-btn px-3 py-2 text-sm font-medium text-gray-300 bg-gray-700 rounded-md hover:bg-gray-600" data-lang-key="sort_change">변동률순</button>
+                            </div>
+                            <div class="flex items-center justify-center">
+                                <label for="watchlist-toggle" class="flex items-center cursor-pointer"><span class="mr-3 text-sm font-medium text-gray-300" data-lang-key="watchlist">⭐ 관심 목록</span><div class="relative"><input type="checkbox" id="watchlist-toggle" class="sr-only"><div class="block bg-gray-600 w-14 h-8 rounded-full"></div><div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div></div></label>
+                            </div>
+                        </div>
+                        <div id="loading-indicator" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+                        <div id="crypto-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+                        <div id="no-results" class="hidden text-center text-gray-400 py-10 col-span-full"></div>
+                    </div>
+                </main>
+            </div>
+        </section>
+        
+        <section id="blog-page" class="page-section">
+            <div class="container mx-auto max-w-4xl py-12 px-4">
+                <h1 class="text-4xl font-bold text-center mb-2" data-lang-key="blog_title">개인화 AI 브리핑</h1>
+                <p class="text-center text-gray-400 mb-8" data-lang-key="blog_subtitle">선택한 코인에 대한 맞춤형 AI 분석 리포트입니다.</p>
+                <div class="bg-gray-800/50 p-4 rounded-lg border border-gray-700 mb-8">
+                    <h3 class="font-bold mb-2" data-lang-key="analysis_target">분석 대상 코인</h3>
+                    <div id="briefing-coin-list" class="flex flex-wrap gap-2"></div>
+                </div>
+                <div class="text-center mb-8">
+                    <button id="fetch-ai-briefing" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-lg shadow-blue-500/30 disabled:bg-gray-500 disabled:cursor-not-allowed">
+                        <span data-lang-key="fetch_briefing_btn">선택한 코인 AI 분석 생성</span>
+                    </button>
+                </div>
+                <div id="ai-briefing-results-container" class="space-y-8"></div>
+                <div id="opinion-section" class="mt-16">
+                    <h2 class="text-2xl font-bold mb-4" data-lang-key="user_opinions_title">사용자 의견</h2>
+                    <div class="mb-8 p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+                        <h3 class="font-bold mb-2" data-lang-key="post_opinion_title">의견 남기기</h3>
+                        <div class="space-y-4">
+                            <input id="opinion-nickname" type="text" placeholder="닉네임" class="w-full bg-gray-700 rounded-md p-2 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input id="opinion-password" type="password" placeholder="비밀번호 (삭제 시 필요)" class="w-full bg-gray-700 rounded-md p-2 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <textarea id="opinion-content" class="w-full bg-gray-700 rounded-md p-2 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" placeholder="의견을 입력하세요..."></textarea>
+                        </div>
+                        <div class="text-right mt-4">
+                            <button id="post-opinion-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md" data-lang-key="post_opinion_btn">의견 남기기</button>
+                        </div>
+                    </div>
+                    <div id="opinions-list" class="space-y-4"></div>
+                </div>
+            </div>
+        </section>
 
-  // 2. Get the Gemini API Key securely from the environment variables.
-  const geminiApiKey = context.env.GEMINI_API_KEY;
+        <section id="about-page" class="page-section">
+            <div class="container mx-auto max-w-4xl py-12 px-4">
+                <div class="prose lg:prose-xl max-w-none">
+                    <h1 data-lang-key="about_title">Oracoin: 당신의 손안의 암호화폐 분석가</h1>
+                    <p data-lang-key="about_p1">Oracoin은 복잡하고 변동성이 높은 암호화폐 시장에서, 데이터에 기반한 현명한 결정을 내릴 수 있도록 돕는 강력한 올인원 분석 도구입니다. 매일 쏟아지는 정보의 홍수 속에서 길을 잃지 않도록, Oracoin은 당신을 위한 명확한 나침반이 되어 드립니다.</p>
+                    <h2 data-lang-key="about_h2">우리의 미션</h2>
+                    <p data-lang-key="about_p2">우리의 미션은 단 하나, 정보의 비대칭성을 해소하여 누구나 공평하게 투자 기회를 잡을 수 있는 환경을 만드는 것입니다. 소수의 전문가만 접근 가능했던 복잡한 분석 도구와 인사이트를, 이제 Oracoin을 통해 누구나 쉽게 활용할 수 있습니다.</p>
+                    <h3 data-lang-key="about_h3_1">Oracoin의 핵심 기능</h3>
+                    <ul>
+                        <li data-lang-key="about_li1"><strong>실시간 데이터 분석:</strong> 전 세계 주요 코인의 가격, 변동률, 기술적 지표(RSI, 이동평균선)를 실시간으로 추적하고 객관적인 평가를 제공합니다.</li>
+                        <li data-lang-key="about_li2"><strong>AI 뉴스 브리핑:</strong> 최신 국내외 뉴스를 AI가 분석하여, 시장의 전반적인 분위기와 핵심 포인트를 요약한 '오늘의 브리핑'을 매일 제공합니다.</li>
+                        <li data-lang-key="about_li3"><strong>완벽한 개인화:</strong> 최대 6개의 관심 코인을 직접 선택하고, 관심 목록, 검색, 정렬 기능을 통해 자신만의 맞춤형 대시보드를 구성할 수 있습니다.</li>
+                    </ul>
+                    <h3 data-lang-key="about_h3_2">우리의 약속</h3>
+                    <p data-lang-key="about_p3">Oracoin은 투자 조언이나 권유를 하지 않습니다. 우리는 오직 객관적이고 가치 있는 데이터를 제공하여, 최종적으로 당신이 더 나은 투자 결정을 내릴 수 있도록 돕는 것에 집중합니다. 당신의 성공적인 투자 여정에 Oracoin이 함께하겠습니다.</p>
+                </div>
+            </div>
+        </section>
 
-  // 3. If the API key is not set on the server, return an error.
-  if (!geminiApiKey) {
-    return new Response(JSON.stringify({ error: 'API key not configured on the server.' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+        <section id="contact-page" class="page-section">
+            <div class="container mx-auto max-w-4xl py-12 px-4">
+                 <div class="prose lg:prose-xl max-w-none">
+                    <h1 data-lang-key="contact_title">Contact Us</h1>
+                    <p data-lang-key="contact_p1">Oracoin에 대한 질문, 파트너십 제안, 혹은 소중한 피드백이 있으신가요? 언제든지 아래 이메일로 연락 주시면 저희 팀이 최대한 빠르게 확인하고 답변해 드리겠습니다.</p>
+                    <p><strong><span data-lang-key="contact_email_label">문의 이메일</span>:</strong> <a href="mailto:contact@oracoin.dev">contact@oracoin.dev</a></p>
+                </div>
+            </div>
+        </section>
 
-  // 4. Construct a detailed, structured prompt for the AI.
-  const coinListString = coins.join(', ');
+        <section id="privacy-page" class="page-section">
+             <div class="container mx-auto max-w-4xl py-12 px-4">
+                 <div class="prose lg:prose-xl max-w-none">
+                    <h1 data-lang-key="privacy_title">개인정보처리방침</h1>
+                    <p><strong data-lang-key="privacy_effective_date">시행일: 2025년 9월 17일</strong></p>
+                    <p data-lang-key="privacy_p1">Oracoin(이하 '서비스')은 사용자의 개인정보를 소중하게 생각하며, 정보통신망 이용촉진 및 정보보호 등에 관한 법률을 비롯한 모든 개인정보보호 관련 법규를 준수하고 있습니다.</p>
+                    <h2 data-lang-key="privacy_h2_1">1. 수집하는 개인정보 항목 및 목적</h2>
+                    <p data-lang-key="privacy_p2">저희 서비스는 별도의 회원가입 절차가 없으므로, 이름, 이메일 주소 등 개인을 식별할 수 있는 어떠한 정보도 의도적으로 수집하지 않습니다. 다만, 서비스 이용 과정에서 다음과 같은 정보가 자동으로 생성되어 수집될 수 있습니다.</p>
+                    <ul>
+                        <li data-lang-key="privacy_li1"><strong>기기 정보 및 서비스 이용 기록:</strong> IP 주소, 쿠키, 브라우저 종류, 운영체제, 방문 일시, 서비스 이용 기록</li>
+                        <li data-lang-key="privacy_li2"><strong>목적:</strong> 서비스 품질 개선, 통계 분석을 통한 사용자 경험 최적화, 부정 이용 방지, 그리고 구글 애드센스를 통한 맞춤형 광고 제공</li>
+                    </ul>
+                    <h2 data-lang-key="privacy_h2_2">2. 쿠키(Cookie)에 관한 사항</h2>
+                    <p data-lang-key="privacy_p3">저희 서비스는 사용자에게 더 나은 경험을 제공하기 위해 쿠키를 사용합니다. 쿠키는 사용자의 언어 설정, 관심 목록 등의 기본 설정을 저장하는 데 사용됩니다. 또한, 구글 애드센스와 같은 제3자 광고 파트너가 맞춤형 광고를 제공하기 위해 쿠키를 사용할 수 있습니다. 사용자는 웹 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 이 경우 일부 서비스 이용에 불편이 있을 수 있습니다.</p>
+                    <h2 data-lang-key="privacy_h2_3">3. 개인정보의 보유 및 이용기간</h2>
+                    <p data-lang-key="privacy_p4">자동으로 수집된 정보는 관련 법령에 정해진 기간 동안, 또는 서비스 통계 분석 및 품질 개선의 목적이 달성될 때까지 보유 및 이용됩니다. 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다.</p>
+                 </div>
+            </div>
+        </section>
+    </div>
 
-  const prompt_ko = `당신은 'Oracoin' 서비스의 수석 금융 분석 AI입니다. 사용자가 선택한 다음 암호화폐에 대한 개인화된 뉴스레터 분석을 생성해야 합니다: ${coinListString}. 각 코인에 대해, 반드시 제공된 JSON 스키마 구조에 따라 응답을 생성해주세요. 분석 내용은 최신 뉴스와 시장 데이터를 기반으로 해야 하며, 구체적이고 데이터 중심적이어야 합니다. 일반적인 내용은 피해주세요. 'recommendation'은 '매수 고려', '중립/관망', '매도/주의' 중 하나여야 합니다. 'priceTarget'은 단기적인 관점에서 현실적인 목표 가격 또는 범위를 제시해야 합니다. 모든 분석의 'opinion' 필드 끝에는 "면책 조항: 본 분석은 정보 제공 목적으로만 제공되며, 투자 조언이 아닙니다. 모든 투자 결정에 대한 책임은 본인에게 있습니다." 라는 문구를 반드시 포함시켜 주세요.`;
-  const prompt_en = `You are a senior financial analyst AI for a service called 'Oracoin'. You must generate a personalized newsletter analysis for the following cryptocurrencies selected by the user: ${coinListString}. For each coin, you MUST generate a response following the provided JSON schema. Your analysis must be based on the latest news and market data, be specific, and data-driven. Avoid generic statements. The 'recommendation' must be one of: 'Consider Buying', 'Neutral/Watch', or 'Sell/Caution'. The 'priceTarget' should provide a realistic short-term target price or range. At the end of the 'opinion' field for every analysis, you MUST include the disclaimer: "Disclaimer: This analysis is for informational purposes only and does not constitute financial advice. You are solely responsible for your own investment decisions."`;
-  
-  const prompt = lang === 'ko' ? prompt_ko : prompt_en;
+    <!-- 푸터 -->
+    <footer class="bg-gray-900 border-t border-gray-700">
+        <div class="container mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center text-gray-400">
+            <div class="flex justify-center space-x-6 mb-4">
+                <a href="#" class="nav-link text-sm hover:text-white" data-page="about">소개</a>
+                <a href="#" class="nav-link text-sm hover:text-white" data-page="contact">문의하기</a>
+                <a href="#" class="nav-link text-sm hover:text-white" data-page="privacy">개인정보처리방침</a>
+            </div>
+            <p class="text-sm" data-lang-key="data_provider">데이터 제공: <a href="https://www.coingecko.com/" target="_blank" class="underline hover:text-blue-400">CoinGecko</a></p>
+            <p class="text-xs mt-2">&copy; 2025 Oracoin. All Rights Reserved.</p>
+        </div>
+    </footer>
+    
+    <!-- 모달 -->
+    <div id="modal-overlay" class="fixed inset-0 items-center justify-center hidden z-50 p-4">
+        <div id="modal-content" class="bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-2xl mx-auto relative transform transition-all duration-300 scale-95 opacity-0"></div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
-  // Define the structured JSON schema for the AI's response.
-  const responseSchema = {
-    type: "ARRAY",
-    items: {
-      type: "OBJECT",
-      properties: {
-        "coinName": { "type": "STRING", "description": "암호화폐의 이름 (예: Bitcoin)" },
-        "analysis": {
-          type: "OBJECT",
-          properties: {
-            "opinion": { "type": "STRING", "description": "뉴스 및 시장 데이터에 기반한 전문가 의견 및 면책 조항." },
-            "recommendation": { "type": "STRING", "description": "'매수 고려', '중립/관망', '매도/주의' 중 하나." },
-            "priceTarget": { "type": "STRING", "description": "단기 목표 가격 또는 가격 범위." }
-          }
-        },
-        "relatedNews": {
-          type: "ARRAY",
-          items: {
-            type: "OBJECT",
-            properties: {
-              "title": { "type": "STRING", "description": "관련 뉴스 기사의 제목" },
-              "url": { "type": "STRING", "description": "뉴스 원문 링크" }
+        const firebaseConfig = {
+          apiKey: "YOUR_API_KEY",
+          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT_ID.appspot.com",
+          messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const functions = getFunctions(app);
+
+        const coingeckoApiKey = 'CG-xmGqWe2JgRKTWjf1WSPT9saQ';
+        
+        const elements = {
+            sidebar: document.getElementById('sidebar'),
+            sidebarToggle: document.getElementById('sidebar-toggle'),
+            sidebarOverlay: document.getElementById('sidebar-overlay'),
+            cryptoContainer: document.getElementById('crypto-container'),
+            loadingIndicator: document.getElementById('loading-indicator'),
+            searchInput: document.getElementById('search-input'),
+            sortButtons: document.querySelectorAll('.sort-btn'),
+            watchlistToggle: document.getElementById('watchlist-toggle'),
+            noResults: document.getElementById('no-results'),
+            modalOverlay: document.getElementById('modal-overlay'),
+            modalContent: document.getElementById('modal-content'),
+            coinListSidebar: document.getElementById('coin-list-sidebar'),
+            limitMessage: document.getElementById('limit-message'),
+            langButtons: document.querySelectorAll('.lang-btn'),
+            fetchBriefingBtn: document.getElementById('fetch-ai-briefing'),
+            pageContainer: document.getElementById('page-container'),
+            pageSections: document.querySelectorAll('.page-section'),
+            navLinks: document.querySelectorAll('.nav-link'),
+            mobileMenuButton: document.getElementById('mobile-menu-button'),
+            mobileMenu: document.getElementById('mobile-menu'),
+            postOpinionBtn: document.getElementById('post-opinion-btn'),
+        };
+        let chartInstance = null;
+        const state = {
+            language: 'ko',
+            currency: 'krw',
+            allCoins: [],
+            displayedCoins: [],
+            selectedCoinIds: ['bitcoin', 'ethereum', 'ripple', 'dogecoin', 'solana', 'cardano'],
+            favorites: [],
+            searchTerm: '',
+            sortBy: 'name',
+            watchlistOnly: false,
+        };
+        const translations = {
+            ko: {
+                sidebar_title: "코인 목록 (상위 100)",
+                limit_message: "최대 6개까지 추가 가능합니다.",
+                search_placeholder: "추가된 코인 검색...",
+                sort_name: "이름순",
+                sort_price: "가격순",
+                sort_change: "변동률순",
+                watchlist: "⭐ 관심 목록",
+                no_results_text: "결과가 없습니다. 사이드바에서 코인을 추가하거나 검색어를 변경해보세요.",
+                add_coin_prompt: "사이드바에서 코인을 추가하여 분석을 시작하세요.",
+                eval_buy: "매수 고려",
+                eval_caution: "주의 필요",
+                eval_neutral: "관망",
+                rsi_overbought: "과매수",
+                rsi_oversold: "과매도",
+                rsi_neutral: "중립",
+                ma_uptrend: "상승 추세",
+                ma_downtrend: "하락 추세",
+                evaluation: "종합 평가",
+                price: "현재가",
+                change_24h: "24시간 변동",
+                market_cap: "시가총액",
+                high_24h: "24시간 최고가",
+                low_24h: "24시간 최저가",
+                total_volume: "총 거래량",
+                description: "설명",
+                homepage: "공식 홈페이지",
+                chart_title: "7일 가격 변동",
+                blog_title: "개인화 AI 브리핑",
+                blog_subtitle: "선택한 코인에 대한 맞춤형 AI 분석 리포트입니다.",
+                analysis_target: "분석 대상 코인",
+                fetch_briefing_btn: "선택한 코인 AI 분석 생성",
+                add_coin_for_briefing: "홈 화면에서 분석할 코인을 먼저 추가해주세요.",
+                recommendation_title: "투자 판단",
+                price_target_title: "단기 목표가",
+                rec_buy_keyword: "매수",
+                rec_sell_keyword: "매도",
+                no_analysis_data: "분석 데이터를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
+                ai_opinion_title: "AI 종합 의견",
+                related_news_title: "관련 뉴스",
+                ai_loading: "AI가 최신 뉴스를 분석하고 있습니다...",
+                api_key_error_server: "서버에 API 키가 설정되지 않았습니다. 사이트 관리자에게 문의하세요.",
+                briefing_error: "브리핑을 생성하는 데 실패했습니다. 잠시 후 다시 시도해주세요.",
+                opinion_error: "의견을 생성하지 못했습니다.",
+                no_news_found: "관련 뉴스를 찾을 수 없습니다.",
+                about_title: "Oracoin: 당신의 손안의 암호화폐 분석가",
+                about_p1: "Oracoin은 복잡하고 변동성이 높은 암호화폐 시장에서, 데이터에 기반한 현명한 결정을 내릴 수 있도록 돕는 강력한 올인원 분석 도구입니다. 매일 쏟아지는 정보의 홍수 속에서 길을 잃지 않도록, Oracoin은 당신을 위한 명확한 나침반이 되어 드립니다.",
+                about_h2: "우리의 미션",
+                about_p2: "우리의 미션은 단 하나, 정보의 비대칭성을 해소하여 누구나 공평하게 투자 기회를 잡을 수 있는 환경을 만드는 것입니다. 소수의 전문가만 접근 가능했던 복잡한 분석 도구와 인사이트를, 이제 Oracoin을 통해 누구나 쉽게 활용할 수 있습니다.",
+                about_h3_1: "Oracoin의 핵심 기능",
+                about_li1: "<strong>실시간 데이터 분석:</strong> 전 세계 주요 코인의 가격, 변동률, 기술적 지표(RSI, 이동평균선)를 실시간으로 추적하고 객관적인 평가를 제공합니다.",
+                about_li2: "<strong>AI 뉴스 브리핑:</strong> 최신 국내외 뉴스를 AI가 분석하여, 시장의 전반적인 분위기와 핵심 포인트를 요약한 '오늘의 브리핑'을 매일 제공합니다.",
+                about_li3: "<strong>완벽한 개인화:</strong> 최대 6개의 관심 코인을 직접 선택하고, 관심 목록, 검색, 정렬 기능을 통해 자신만의 맞춤형 대시보드를 구성할 수 있습니다.",
+                about_h3_2: "우리의 약속",
+                about_p3: "Oracoin은 투자 조언이나 권유를 하지 않습니다. 우리는 오직 객관적이고 가치 있는 데이터를 제공하여, 최종적으로 당신이 더 나은 투자 결정을 내릴 수 있도록 돕는 것에 집중합니다. 당신의 성공적인 투자 여정에 Oracoin이 함께하겠습니다.",
+                contact_title: "Contact Us",
+                contact_p1: "Oracoin에 대한 질문, 파트너십 제안, 혹은 소중한 피드백이 있으신가요? 언제든지 아래 이메일로 연락 주시면 저희 팀이 최대한 빠르게 확인하고 답변해 드리겠습니다.",
+                contact_email_label: "문의 이메일",
+                privacy_title: "개인정보처리방침",
+                privacy_effective_date: "시행일: 2025년 9월 17일",
+                privacy_p1: "Oracoin(이하 '서비스')은 사용자의 개인정보를 소중하게 생각하며, 정보통신망 이용촉진 및 정보보호 등에 관한 법률을 비롯한 모든 개인정보보호 관련 법규를 준수하고 있습니다.",
+                privacy_h2_1: "1. 수집하는 개인정보 항목 및 목적",
+                privacy_p2: "저희 서비스는 별도의 회원가입 절차가 없으므로, 이름, 이메일 주소 등 개인을 식별할 수 있는 어떠한 정보도 의도적으로 수집하지 않습니다. 다만, 서비스 이용 과정에서 다음과 같은 정보가 자동으로 생성되어 수집될 수 있습니다.",
+                privacy_li1: "<strong>기기 정보 및 서비스 이용 기록:</strong> IP 주소, 쿠키, 브라우저 종류, 운영체제, 방문 일시, 서비스 이용 기록",
+                privacy_li2: "<strong>목적:</strong> 서비스 품질 개선, 통계 분석을 통한 사용자 경험 최적화, 부정 이용 방지, 그리고 구글 애드센스를 통한 맞춤형 광고 제공",
+                privacy_h2_2: "2. 쿠키(Cookie)에 관한 사항",
+                privacy_p3: "저희 서비스는 사용자에게 더 나은 경험을 제공하기 위해 쿠키를 사용합니다. 쿠키는 사용자의 언어 설정, 관심 목록 등의 기본 설정을 저장하는 데 사용됩니다. 또한, 구글 애드센스와 같은 제3자 광고 파트너가 맞춤형 광고를 제공하기 위해 쿠키를 사용할 수 있습니다. 사용자는 웹 브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나, 이 경우 일부 서비스 이용에 불편이 있을 수 있습니다.",
+                privacy_h2_3: "3. 개인정보의 보유 및 이용기간",
+                privacy_p4: "자동으로 수집된 정보는 관련 법령에 정해진 기간 동안, 또는 서비스 통계 분석 및 품질 개선의 목적이 달성될 때까지 보유 및 이용됩니다. 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다.",
+                user_opinions_title: "사용자 의견",
+                post_opinion_title: "의견 남기기",
+                post_opinion_btn: "의견 남기기",
+                opinion_form_error: "닉네임, 비밀번호, 내용을 모두 입력해주세요.",
+                posting_opinion: "게시 중...",
+                opinion_post_error: "의견을 게시하는 데 실패했습니다.",
+                enter_password_for_delete: "삭제하려면 비밀번호를 입력하세요.",
+                incorrect_password: "비밀번호가 올바르지 않습니다.",
+                delete_opinion_error: "의견 삭제에 실패했습니다."
+            },
+            en: {
+                sidebar_title: "Coin List (Top 100)",
+                limit_message: "You can add up to 6 coins.",
+                search_placeholder: "Search added coins...",
+                sort_name: "By Name",
+                sort_price: "By Price",
+                sort_change: "By Change",
+                watchlist: "⭐ Watchlist",
+                no_results_text: "No results found. Add coins from the sidebar or change your search term.",
+                add_coin_prompt: "Add coins from the sidebar to start analysis.",
+                eval_buy: "Consider Buying",
+                eval_caution: "Caution Advised",
+                eval_neutral: "Neutral / Watch",
+                rsi_overbought: "Overbought",
+                rsi_oversold: "Oversold",
+                rsi_neutral: "Neutral",
+                ma_uptrend: "Uptrend",
+                ma_downtrend: "Downtrend",
+                evaluation: "Overall Evaluation",
+                price: "Current Price",
+                change_24h: "24h Change",
+                market_cap: "Market Cap",
+                high_24h: "24h High",
+                low_24h: "24h Low",
+                total_volume: "Total Volume",
+                description: "Description",
+                homepage: "Official Homepage",
+                chart_title: "7-Day Price Change",
+                blog_title: "Personalized AI Briefing",
+                blog_subtitle: "Custom AI analysis reports for your selected coins.",
+                analysis_target: "Coins to Analyze",
+                fetch_briefing_btn: "Generate AI Analysis for Selected Coins",
+                add_coin_for_briefing: "Please add coins on the Home screen to analyze.",
+                recommendation_title: "Recommendation",
+                price_target_title: "Short-term Price Target",
+                rec_buy_keyword: "Buy",
+                rec_sell_keyword: "Sell",
+                no_analysis_data: "Could not generate analysis data. Please try again later.",
+                ai_opinion_title: "AI Overall Opinion",
+                related_news_title: "Related News",
+                ai_loading: "AI is analyzing the latest news...",
+                api_key_error_server: "API key is not configured on the server. Please contact the site administrator.",
+                briefing_error: "Failed to generate briefing. Please try again later.",
+                opinion_error: "Could not generate opinion.",
+                no_news_found: "No related news found.",
+                about_title: "Oracoin: Your Crypto Analyst in Hand",
+                about_p1: "Oracoin is a powerful, all-in-one analysis tool designed to help you make smarter, data-driven decisions in the complex and volatile cryptocurrency market. To prevent you from getting lost in the daily flood of information, Oracoin serves as your clear compass.",
+                about_h2: "Our Mission",
+                about_p2: "We have one mission: to resolve information asymmetry and create an environment where everyone has a fair chance to seize investment opportunities. Complex analysis tools and insights, once accessible only to a few experts, are now easily available to everyone through Oracoin.",
+                about_h3_1: "Oracoin's Core Features",
+                about_li1: "<strong>Real-time Data Analysis:</strong> We track and provide objective evaluations of major global coins' prices, percentage changes, and technical indicators (RSI, Moving Average) in real-time.",
+                about_li2: "<strong>AI News Briefing:</strong> Our AI analyzes the latest domestic and international news to provide a daily 'Today's Briefing' that summarizes the overall market sentiment and key takeaways.",
+                about_li3: "<strong>Complete Personalization:</strong> Select up to six coins of interest and configure your own custom dashboard with watchlist, search, and sort functionalities.",
+                about_h3_2: "Our Promise",
+                about_p3: "Oracoin does not provide investment advice or recommendations. We focus solely on delivering objective, valuable data to ultimately help you make better investment decisions. Oracoin will be with you on your successful investment journey.",
+                contact_title: "Contact Us",
+                contact_p1: "Do you have questions, partnership proposals, or valuable feedback about Oracoin? Please feel free to contact us at the email below, and our team will review and respond as quickly as possible.",
+                contact_email_label: "Contact Email",
+                privacy_title: "Privacy Policy",
+                privacy_effective_date: "Effective Date: September 17, 2025",
+                privacy_p1: "Oracoin (the 'Service') values your privacy and complies with all relevant privacy laws and regulations, including the Act on Promotion of Information and Communications Network Utilization and Information Protection, etc.",
+                privacy_h2_1: "1. Information We Collect and Why",
+                privacy_p2: "Our Service does not require user registration, and we do not intentionally collect any personally identifiable information (such as name, email address, etc.). However, the following information may be automatically generated and collected during your use of the service:",
+                privacy_li1: "<strong>Device Information and Service Usage Logs:</strong> IP address, cookies, browser type, operating system, visit dates, service usage records.",
+                privacy_li2: "<strong>Purpose:</strong> To improve service quality, optimize user experience through statistical analysis, prevent fraudulent use, and deliver personalized advertising through Google AdSense.",
+                privacy_h2_2: "2. Regarding Cookies",
+                privacy_p3: "Our Service uses cookies to provide a better user experience. Cookies are used to store basic settings such as your language preference and watchlist. Additionally, third-party advertising partners like Google AdSense may use cookies to serve personalized ads. You can refuse to accept cookies through your web browser's settings, but doing so may cause inconvenience in using some services.",
+                privacy_h2_3: "3. Data Retention and Use Period",
+                privacy_p4: "Automatically collected information is retained and used for the period stipulated by relevant laws or until the purposes of statistical analysis and service quality improvement are achieved. After the purpose is achieved, the information is promptly destroyed.",
+                user_opinions_title: "User Opinions",
+                post_opinion_title: "Post an Opinion",
+                post_opinion_btn: "Post Opinion",
+                opinion_form_error: "Please fill in nickname, password, and content.",
+                posting_opinion: "Posting...",
+                opinion_post_error: "Failed to post opinion.",
+                enter_password_for_delete: "Enter password to delete.",
+                incorrect_password: "Incorrect password.",
+                delete_opinion_error: "Failed to delete opinion."
             }
-          }
+        };
+
+        function t(key) { return translations[state.language][key] || key; }
+
+        function showPage(pageId) {
+            elements.pageSections.forEach(section => section.classList.remove('active'));
+            const targetPage = document.getElementById(pageId + '-page');
+            if (targetPage) targetPage.classList.add('active');
+            
+            elements.navLinks.forEach(link => link.classList.toggle('active', link.dataset.page === pageId));
+            
+            if (pageId === 'blog') {
+                renderBriefingCoinList();
+            }
+
+            window.scrollTo(0, 0); 
+            elements.mobileMenu.classList.add('hidden'); 
         }
-      },
-      required: ["coinName", "analysis", "relatedNews"]
-    }
-  };
 
-  // 5. Create the payload for the Gemini API call.
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }],
-    tools: [{ "google_search": {} }], // Use Google Search for real-time news and data.
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: responseSchema
-    }
-  };
+        function renderBriefingCoinList() {
+            const container = document.getElementById('briefing-coin-list');
+            const fetchButton = document.getElementById('fetch-ai-briefing');
+            
+            if (state.selectedCoinIds.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-sm">${t('add_coin_for_briefing')}</p>`;
+                fetchButton.disabled = true;
+                return;
+            }
 
-  // 6. Forward the request to the Gemini API and return the response.
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${geminiApiKey}`;
+            container.innerHTML = '';
+            fetchButton.disabled = false;
+            state.selectedCoinIds.forEach(id => {
+                const coin = state.allCoins.find(c => c.id === id);
+                if (coin) {
+                    container.innerHTML += `<span class="bg-gray-700 text-sm font-medium px-3 py-1 rounded-full flex items-center"><img src="${coin.image}" class="w-4 h-4 mr-2 rounded-full">${coin.name}</span>`;
+                }
+            });
+        }
 
-  try {
-    const geminiResponse = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+        async function fetchPersonalizedBriefing() {
+            const resultsContainer = document.getElementById('ai-briefing-results-container');
+            const fetchButton = document.getElementById('fetch-ai-briefing');
 
-    if (!geminiResponse.ok) {
-      const errorBody = await geminiResponse.text();
-      console.error(`Gemini API Error: ${errorBody}`);
-      return new Response(JSON.stringify({ error: 'Failed to fetch from Gemini API.' }), {
-        status: geminiResponse.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+            fetchButton.disabled = true;
+            resultsContainer.innerHTML = `<div class="flex items-center justify-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div><p class="ml-4 text-lg">${t('ai_loading')}</p></div>`;
 
-    const geminiData = await geminiResponse.json();
-    return new Response(JSON.stringify(geminiData), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+            const coinNames = state.selectedCoinIds.map(id => {
+                const coin = state.allCoins.find(c => c.id === id);
+                return coin ? coin.name : id;
+            });
+            
+            try {
+                const callBriefing = httpsCallable(functions, 'getAIBriefing');
+                const result = await callBriefing({ lang: state.language, coins: coinNames });
+                
+                let analysisData;
+                try {
+                     analysisData = JSON.parse(result.data.candidates?.[0]?.content?.parts?.[0]?.text || '[]');
+                } catch(e) {
+                    console.error("Failed to parse AI response JSON:", e);
+                    throw new Error(t('briefing_error'));
+                }
+                
+                renderBriefingResults(analysisData);
 
-  } catch (error) {
-    console.error('Error in API gateway:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error.' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}
+            } catch (error) {
+                console.error("AI 브리핑 실패:", error);
+                resultsContainer.innerHTML = `<p class="text-red-400 text-center">${error.message}</p>`;
+            } finally {
+                fetchButton.disabled = false;
+            }
+        }
+
+        function renderBriefingResults(data) {
+            const container = document.getElementById('ai-briefing-results-container');
+            container.innerHTML = '';
+
+            if (!Array.isArray(data) || data.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 text-center">${t('no_analysis_data')}</p>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const rec = item.analysis.recommendation || "";
+                const recClass = rec.includes(t('rec_buy_keyword')) ? 'bg-green-500/10 text-green-400' : 
+                                 rec.includes(t('rec_sell_keyword')) ? 'bg-red-500/10 text-red-400' :
+                                 'bg-gray-500/10 text-gray-400';
+
+                const cardHtml = `
+                    <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-6 prose max-w-none">
+                        <h2 class="!mt-0 !mb-4">${item.coinName} AI 분석 리포트</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 not-prose">
+                            <div class="bg-gray-700/50 p-3 rounded-md">
+                                <h4 class="text-sm font-bold uppercase text-gray-400 mt-0 mb-1">${t('recommendation_title')}</h4>
+                                <p class="text-lg font-bold ${recClass} px-2 py-1 rounded-md inline-block my-0">${rec}</p>
+                            </div>
+                            <div class="bg-gray-700/50 p-3 rounded-md">
+                                <h4 class="text-sm font-bold uppercase text-gray-400 mt-0 mb-1">${t('price_target_title')}</h4>
+                                <p class="text-lg font-bold my-0">${item.analysis.priceTarget}</p>
+                            </div>
+                        </div>
+                        <h3 class="!mb-2">${t('ai_opinion_title')}</h3>
+                        <div class="text-gray-300">${(item.analysis.opinion || "").replace(/\n/g, '<br>')}</div>
+                        <h3 class="mt-6 !mb-2">${t('related_news_title')}</h3>
+                        <ul class="!pl-5">
+                            ${(item.relatedNews || []).map(news => `<li><a href="${news.url}" target="_blank" rel="noopener noreferrer">${news.title}</a></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        async function setLanguage(lang) {
+            if (!['ko', 'en'].includes(lang)) return;
+            state.language = lang;
+            state.currency = lang === 'ko' ? 'krw' : 'usd';
+            localStorage.setItem('cryptoLang', lang);
+            document.documentElement.lang = lang;
+            
+            elements.langButtons.forEach(btn => btn.classList.toggle('active', btn.id === `lang-${lang}`));
+            document.querySelectorAll('[data-lang-key]').forEach(el => {
+                const key = el.dataset.langKey;
+                if(el.placeholder) el.placeholder = t(key);
+                else el.textContent = t(key);
+            });
+            
+            await fetchSidebarCoins();
+            await loadData();
+        }
+
+        function renderLoadingSkeletons() {
+            elements.loadingIndicator.innerHTML = '';
+            for (let i = 0; i < state.selectedCoinIds.length; i++) {
+                elements.loadingIndicator.innerHTML += `<div class="skeleton-card animate-pulse"><div class="flex justify-between items-start"><div class="flex items-center"><div class="w-10 h-10 rounded-full skeleton"></div><div class="ml-3"><div class="w-24 h-5 mb-1 skeleton"></div><div class="w-16 h-4 skeleton"></div></div></div><div class="w-6 h-6 rounded-full skeleton"></div></div><div class="mt-4"><div class="w-40 h-8 mb-2 skeleton"></div><div class="w-24 h-5 skeleton"></div></div><div class="mt-4 pt-4 border-t border-gray-700"><div class="w-32 h-5 mb-2 skeleton"></div><div class="flex justify-between"><div class="w-20 h-4 skeleton"></div><div class="w-20 h-4 skeleton"></div></div></div></div>`;
+            }
+        }
+        
+        function render() {
+            let coinsToRender = state.displayedCoins.filter(c => {
+                const searchMatch = state.searchTerm === '' || c.name.toLowerCase().includes(state.searchTerm.toLowerCase()) || c.symbol.toLowerCase().includes(state.searchTerm.toLowerCase());
+                const watchlistMatch = !state.watchlistOnly || state.favorites.includes(c.id);
+                return searchMatch && watchlistMatch;
+            });
+
+            coinsToRender.sort((a, b) => {
+                if (state.sortBy === 'name') return a.name.localeCompare(b.name);
+                if (state.sortBy === 'price') return b.current_price - a.current_price;
+                if (state.sortBy === 'change') return b.price_change_percentage_24h - a.price_change_percentage_24h;
+                return 0;
+            });
+            
+            elements.cryptoContainer.innerHTML = '';
+
+            if (state.selectedCoinIds.length === 0) {
+                 elements.noResults.innerHTML = `<p>${t('add_coin_prompt')}</p>`;
+                 elements.noResults.classList.remove('hidden');
+                 return;
+            }
+            
+            if (coinsToRender.length === 0) {
+                 elements.noResults.innerHTML = `<p>${t('no_results_text')}</p>`;
+                 elements.noResults.classList.remove('hidden');
+            } else {
+                 elements.noResults.classList.add('hidden');
+            }
+
+            coinsToRender.forEach(coin => {
+                const isFavorite = state.favorites.includes(coin.id);
+                const priceChange = coin.price_change_percentage_24h || 0;
+                const changeColor = priceChange >= 0 ? 'text-green-400' : 'text-red-400';
+                const formattedPrice = new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, minimumFractionDigits: 2, maximumFractionDigits: priceChange > 100 ? 0 : 2 }).format(coin.current_price);
+                
+                const { evalClass, evalText } = getEvaluation(coin.rsi, coin.ma_20_day_comparison);
+                const { rsiStatus, rsiText } = getRsiStatus(coin.rsi);
+                const { maStatus, maText } = getMaStatus(coin.ma_20_day_comparison);
+
+                elements.cryptoContainer.innerHTML += `<div class="bg-gray-800 rounded-xl p-5 shadow-lg border border-gray-700 hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-1 cursor-pointer" data-coin-id="${coin.id}"><div class="flex justify-between items-start"><div class="flex items-center"><img src="${coin.image}" alt="${coin.name}" class="w-10 h-10 rounded-full"><div class="ml-3"><h3 class="font-bold text-lg">${coin.name}</h3><p class="text-sm text-gray-400 uppercase">${coin.symbol}</p></div></div><div class="flex items-center"><span class="star-icon text-2xl ${isFavorite ? 'favorited' : 'text-gray-600'}" data-id="${coin.id}">★</span><button class="remove-coin-btn ml-2 text-gray-500 hover:text-red-500" data-id="${coin.id}">&times;</button></div></div><div class="mt-4"><p class="text-3xl font-bold">${formattedPrice}</p><p class="text-md ${changeColor}">${priceChange.toFixed(2)}%</p></div><div class="mt-4 pt-4 border-t border-gray-700"><p class="text-xs text-gray-400 font-bold mb-2 uppercase">${t('evaluation')}</p><div class="flex justify-between items-center mb-2"><p class="font-bold text-lg ${evalClass}">${evalText}</p></div><div class="text-xs space-y-1"><div class="flex justify-between"><span class="text-gray-400">RSI:</span> <span class="${rsiStatus}">${rsiText} (${coin.rsi ? coin.rsi.toFixed(1) : 'N/A'})</span></div><div class="flex justify-between"><span class="text-gray-400">MA(20):</span> <span class="${maStatus}">${maText}</span></div></div></div></div>`;
+            });
+        }
+        
+        function renderSidebar() {
+            elements.coinListSidebar.innerHTML = '';
+            state.allCoins.forEach(coin => {
+                const isSelected = state.selectedCoinIds.includes(coin.id);
+                elements.coinListSidebar.innerHTML += `<div class="flex items-center justify-between p-2 rounded-md hover:bg-gray-700"><div class="flex items-center overflow-hidden"><img src="${coin.image}" class="w-6 h-6 rounded-full mr-2"><span class="font-medium text-sm truncate">${coin.name}</span></div><button class="add-coin-btn text-2xl ${isSelected ? 'text-gray-500 cursor-not-allowed' : 'text-green-400 hover:text-green-300'}" data-id="${coin.id}" ${isSelected ? 'disabled' : ''}>+</button></div>`;
+            });
+        }
+        
+        async function fetchSidebarCoins() {
+            const cacheKey = `sidebarCoins_${state.currency}`;
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const { timestamp, data } = JSON.parse(cached);
+                if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+                    state.allCoins = data;
+                    renderSidebar();
+                    return;
+                }
+            }
+            try {
+                const response = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=${state.currency}&order=market_cap_desc&per_page=100&page=1&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
+                if (!response.ok) throw new Error('Failed to fetch sidebar coins');
+                const data = await response.json();
+                state.allCoins = data;
+                localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data }));
+                renderSidebar();
+            } catch (error) {
+                console.error("사이드바 코인 목록 로딩 실패:", error);
+            }
+        }
+        
+        async function loadData() {
+            if (state.selectedCoinIds.length === 0) {
+                render();
+                return;
+            }
+            elements.cryptoContainer.innerHTML = '';
+            renderLoadingSkeletons();
+
+            try {
+                const ids = state.selectedCoinIds.join(',');
+                const marketResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=${state.currency}&ids=${ids}&order=market_cap_desc&price_change_percentage=24h&x_cg_demo_api_key=${coingeckoApiKey}`);
+                if (!marketResponse.ok) throw new Error('Failed to fetch market data');
+                const marketData = await marketResponse.json();
+
+                const coinDataPromises = marketData.map(async (coin) => {
+                    await new Promise(resolve => setTimeout(resolve, 350));
+                    const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${state.currency}&days=30&x_cg_demo_api_key=${coingeckoApiKey}`);
+                    if (!chartResponse.ok) {
+                        return { ...coin, rsi: 50, ma_20_day_comparison: 'neutral' }; 
+                    }
+                    const chartData = await chartResponse.json();
+                    
+                    const prices = chartData.prices.map(p => p[1]).slice(-21);
+                    const rsi = calculateRSI(prices.slice(-15));
+                    const ma_20 = prices.reduce((a, b) => a + b, 0) / prices.length;
+                    const ma_20_day_comparison = coin.current_price > ma_20 ? 'above' : 'below';
+
+                    return { ...coin, rsi, ma_20_day_comparison };
+                });
+
+                state.displayedCoins = await Promise.all(coinDataPromises);
+
+            } catch (error) {
+                console.error("데이터 로딩 실패:", error);
+                elements.cryptoContainer.innerHTML = `<p class="col-span-full text-center text-red-400">데이터를 불러오는 데 실패했습니다. 잠시 후 다시 시도해주세요.</p>`;
+            } finally {
+                elements.loadingIndicator.innerHTML = '';
+                render();
+            }
+        }
+
+        function calculateRSI(prices) {
+            if (prices.length < 15) return 50;
+            let gains = 0; let losses = 0;
+            for (let i = 1; i < prices.length; i++) {
+                const diff = prices[i] - prices[i-1];
+                diff > 0 ? gains += diff : losses -= diff;
+            }
+            if (losses === 0) return 100;
+            const rs = (gains / 14) / (losses / 14);
+            return 100 - (100 / (1 + rs));
+        }
+
+        function getRsiStatus(rsi) {
+            if (!rsi) return { rsiStatus: 'eval-neutral', rsiText: t('rsi_neutral') };
+            if (rsi > 70) return { rsiStatus: 'eval-caution', rsiText: t('rsi_overbought') };
+            if (rsi < 30) return { rsiStatus: 'eval-buy', rsiText: t('rsi_oversold') };
+            return { rsiStatus: 'eval-neutral', rsiText: t('rsi_neutral') };
+        }
+
+        function getMaStatus(ma_comparison) {
+            if (ma_comparison === 'above') return { maStatus: 'eval-buy', maText: t('ma_uptrend') };
+            if (ma_comparison === 'below') return { maStatus: 'eval-caution', maText: t('ma_downtrend') };
+            return { maStatus: 'eval-neutral', maText: t('ma_neutral') };
+        }
+
+        function getEvaluation(rsi, ma_comparison) {
+            let score = 0;
+            if (rsi && rsi < 30) score++;
+            if (rsi && rsi > 70) score--;
+            if (ma_comparison === 'above') score++;
+            if (ma_comparison === 'below') score--;
+
+            if (score > 0) return { evalClass: 'eval-buy', evalText: t('eval_buy') };
+            if (score < 0) return { evalClass: 'eval-caution', evalText: t('eval_caution') };
+            return { evalClass: 'eval-neutral', evalText: t('eval_neutral') };
+        }
+        
+        function handleFavorite(id) {
+            const index = state.favorites.indexOf(id);
+            if (index > -1) state.favorites.splice(index, 1);
+            else state.favorites.push(id);
+            saveData();
+            render();
+        }
+
+        function handleAddCoin(id) {
+            if (state.selectedCoinIds.length >= 6) {
+                elements.limitMessage.classList.remove('opacity-0');
+                setTimeout(() => elements.limitMessage.classList.add('opacity-0'), 2000);
+                return;
+            }
+            if (!state.selectedCoinIds.includes(id)) {
+                state.selectedCoinIds.push(id);
+                saveData();
+                loadData();
+                renderSidebar();
+            }
+        }
+
+        function handleRemoveCoin(id) {
+            state.selectedCoinIds = state.selectedCoinIds.filter(coinId => coinId !== id);
+            state.displayedCoins = state.displayedCoins.filter(coin => coin.id !== id);
+            saveData();
+            render();
+            renderSidebar();
+        }
+
+        function renderChart(prices) {
+            const ctx = document.getElementById('priceChart')?.getContext('2d');
+            if(!ctx) return;
+            if (chartInstance) chartInstance.destroy();
+            const labels = prices.map(p => new Date(p[0]).toLocaleDateString(state.language));
+            const data = prices.map(p => p[1]);
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: t('chart_title'),
+                        data,
+                        borderColor: 'rgba(59, 130, 246, 0.8)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2, tension: 0.4, pointRadius: 0, fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+                        x: { ticks: { color: '#9ca3af' }, grid: { color: 'transparent' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        function closeModal() {
+            elements.modalContent.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                elements.modalOverlay.classList.add('hidden');
+                elements.modalOverlay.classList.remove('flex');
+            }, 300);
+        }
+
+        async function showModal(coinId) {
+            elements.modalOverlay.classList.remove('hidden');
+            elements.modalOverlay.classList.add('flex');
+            elements.modalContent.innerHTML = '<div class="absolute top-4 right-4"><button class="modal-close-btn text-gray-400 hover:text-white text-3xl">&times;</button></div><div class="flex items-center justify-center h-64"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div></div>';
+            elements.modalContent.querySelector('.modal-close-btn').addEventListener('click', closeModal);
+            
+            const coin = state.displayedCoins.find(c => c.id === coinId);
+            if (!coin) { closeModal(); return; }
+
+            try {
+                const detailsResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
+                const chartResponse = await fetch(`https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=${state.currency}&days=7&interval=daily&x_cg_demo_api_key=${coingeckoApiKey}`);
+                
+                if (!detailsResponse.ok || !chartResponse.ok) throw new Error("Failed to fetch details");
+
+                const details = await detailsResponse.json();
+                const chartData = await chartResponse.json();
+                
+                const description = details.description?.[state.language] || details.description?.en || 'Description not available.';
+                const homepage = details.links?.homepage?.[0];
+
+                elements.modalContent.innerHTML = `<button class="modal-close-btn absolute top-4 right-4 text-gray-400 hover:text-white text-3xl">&times;</button><div class="flex items-center mb-4"><img src="${coin.image}" class="w-12 h-12 mr-4"><div><h2 class="text-3xl font-bold">${coin.name}</h2><p class="text-gray-400 uppercase">${coin.symbol}</p></div></div><div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-6"><div><p class="text-gray-400">${t('price')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.current_price)}</p></div><div><p class="text-gray-400">${t('change_24h')}</p><p class="font-bold text-lg ${coin.price_change_percentage_24h >= 0 ? 'text-green-400' : 'text-red-400'}">${(coin.price_change_percentage_24h || 0).toFixed(2)}%</p></div><div><p class="text-gray-400">${t('market_cap')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, notation: 'compact' }).format(coin.market_cap)}</p></div><div><p class="text-gray-400">${t('high_24h')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.high_24h)}</p></div><div><p class="text-gray-400">${t('low_24h')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency }).format(coin.low_24h)}</p></div><div><p class="text-gray-400">${t('total_volume')}</p><p class="font-bold text-lg">${new Intl.NumberFormat(state.language, { style: 'currency', currency: state.currency, notation: 'compact' }).format(coin.total_volume)}</p></div></div><div class="mb-6"><canvas id="priceChart"></canvas></div><div class="prose max-w-none"><h3 class="font-bold">${t('description')}</h3><p class="text-gray-300 text-sm">${description.split('\n\n')[0]}</p>${homepage ? `<a href="${homepage}" target="_blank" class="text-blue-400 hover:underline">${t('homepage')} &rarr;</a>` : ''}</div>`;
+                elements.modalContent.querySelector('.modal-close-btn').addEventListener('click', closeModal);
+                renderChart(chartData.prices);
+
+                setTimeout(() => { elements.modalContent.classList.remove('scale-95', 'opacity-0'); }, 10);
+            } catch (error) {
+                 console.error("Modal data loading failed:", error);
+                 elements.modalContent.innerHTML += '<p class="text-red-400">Failed to load details.</p>';
+            }
+        }
+        
+        function setupEventListeners() {
+            elements.navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPage(e.target.dataset.page);
+                });
+            });
+            elements.mobileMenuButton.addEventListener('click', () => {
+                elements.mobileMenu.classList.toggle('hidden');
+            });
+            elements.sidebarToggle.addEventListener('click', () => {
+                elements.sidebar.classList.toggle('-translate-x-full');
+                elements.sidebarOverlay.classList.toggle('hidden');
+            });
+            elements.sidebarOverlay.addEventListener('click', () => {
+                elements.sidebar.classList.add('-translate-x-full');
+                elements.sidebarOverlay.classList.add('hidden');
+            });
+            elements.searchInput.addEventListener('input', (e) => { state.searchTerm = e.target.value; render(); });
+            elements.sortButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    state.sortBy = button.id.split('-')[1];
+                    elements.sortButtons.forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    render();
+                });
+            });
+            elements.watchlistToggle.addEventListener('change', (e) => { state.watchlistOnly = e.target.checked; render(); });
+            elements.cryptoContainer.addEventListener('click', (e) => {
+                const card = e.target.closest('[data-coin-id]');
+                const star = e.target.closest('.star-icon');
+                const removeBtn = e.target.closest('.remove-coin-btn');
+                if(removeBtn) { e.stopPropagation(); handleRemoveCoin(removeBtn.dataset.id); return; }
+                if (star) { e.stopPropagation(); handleFavorite(star.dataset.id); return; }
+                if (card) showModal(card.dataset.coin-id);
+            });
+            elements.coinListSidebar.addEventListener('click', e => {
+                const addBtn = e.target.closest('.add-coin-btn');
+                if(addBtn && !addBtn.disabled) handleAddCoin(addBtn.dataset.id);
+            });
+            elements.modalOverlay.addEventListener('click', (e) => { if (e.target === elements.modalOverlay) closeModal(); });
+            elements.langButtons.forEach(button => button.addEventListener('click', () => setLanguage(button.id.split('-')[1])));
+            elements.fetchBriefingBtn.addEventListener('click', fetchPersonalizedBriefing);
+            elements.postOpinionBtn.addEventListener('click', postOpinion);
+        }
+        
+        function loadLocalData() {
+            const savedFavorites = localStorage.getItem('cryptoFavorites');
+            if (savedFavorites) state.favorites = JSON.parse(savedFavorites);
+            
+            const savedSelectedCoins = localStorage.getItem('selectedCoinIds');
+            if(savedSelectedCoins && JSON.parse(savedSelectedCoins).length > 0) {
+                 state.selectedCoinIds = JSON.parse(savedSelectedCoins);
+            }
+        }
+        
+        function saveData() {
+            localStorage.setItem('selectedCoinIds', JSON.stringify(state.selectedCoinIds));
+            localStorage.setItem('cryptoFavorites', JSON.stringify(state.favorites));
+        }
+        
+        async function postOpinion() {
+            const nickname = document.getElementById('opinion-nickname').value.trim();
+            const password = document.getElementById('opinion-password').value.trim();
+            const content = document.getElementById('opinion-content').value.trim();
+
+            if (!nickname || !password || !content) {
+                alert(t('opinion_form_error'));
+                return;
+            }
+
+            const postBtn = document.getElementById('post-opinion-btn');
+            postBtn.disabled = true;
+            postBtn.textContent = t('posting_opinion');
+
+            try {
+                const addOpinion = httpsCallable(functions, 'addOpinion');
+                await addOpinion({ nickname, password, content, coinTarget: document.querySelector('#ai-briefing-results-container h2')?.textContent || 'General' });
+                
+                document.getElementById('opinion-nickname').value = '';
+                document.getElementById('opinion-password').value = '';
+                document.getElementById('opinion-content').value = '';
+            } catch (error) {
+                console.error("Error posting opinion:", error);
+                alert(t('opinion_post_error'));
+            } finally {
+                postBtn.disabled = false;
+                postBtn.textContent = t('post_opinion_btn');
+            }
+        }
+        
+        function renderOpinions(opinions) {
+             const list = document.getElementById('opinions-list');
+             if(!list) return;
+             list.innerHTML = '';
+             opinions.forEach(opinion => {
+                 const deleteBtn = `<button class="delete-opinion-btn text-xs text-red-400 hover:underline" data-id="${opinion.id}">삭제</button>`;
+                 list.innerHTML += `
+                    <div class="bg-gray-800 p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-1">
+                            <p class="font-bold text-sm">${opinion.nickname}</p>
+                            <div class="flex items-center space-x-2">
+                               <p class="text-xs text-gray-500">${new Date(opinion.createdAt?.toDate()).toLocaleString()}</p>
+                               ${deleteBtn}
+                            </div>
+                        </div>
+                        <p class="text-gray-300 break-words">${opinion.content}</p>
+                    </div>
+                 `;
+             });
+             document.querySelectorAll('.delete-opinion-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const opinionId = e.target.dataset.id;
+                const password = prompt(t('enter_password_for_delete'));
+                if (password) {
+                     try {
+                        const deleteOpinion = httpsCallable(functions, 'deleteOpinion');
+                        const result = await deleteOpinion({ id: opinionId, password: password });
+                        if(!result.data.success) {
+                            alert(t('incorrect_password'));
+                        }
+                    } catch (error) {
+                        console.error("Error deleting opinion: ", error);
+                        alert(t('delete_opinion_error'));
+                    }
+                }
+             }));
+        }
+
+        function initialize() {
+            const savedLang = localStorage.getItem('cryptoLang') || (navigator.language.startsWith('ko') ? 'ko' : 'en');
+            loadLocalData();
+            setupEventListeners();
+            setLanguage(savedLang);
+            
+            const q = query(collection(db, "opinions"), orderBy("createdAt", "desc"));
+            onSnapshot(q, (querySnapshot) => {
+                const opinions = [];
+                querySnapshot.forEach((doc) => {
+                    opinions.push({ id: doc.id, ...doc.data() });
+                });
+                renderOpinions(opinions);
+            });
+            
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js').catch(err => console.log('SW registration failed: ', err));
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html>
 
