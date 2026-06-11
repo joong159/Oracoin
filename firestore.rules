@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. 유저 관심 코인 및 즐겨찾기 설정 보안 규칙:
+    // 로그인한 유저 본인만 본인의 데이터 조회 및 쓰기/수정 가능
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 2. 사용자 포럼 의견 보안 규칙:
+    // - 누구나 다른 사람의 의견 조회(read) 가능
+    // - 로그인한 유저만 본인 계정 정보(uid)를 기입하여 작성(create) 가능
+    // - 본인이 작성한 의견만 삭제(delete) 가능
+    // - 사후 의견 조작 방지를 위해 임의 수정(update) 불가
+    match /opinions/{opinionId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+    
+    // 3. 시장 감정 분석 투표 보안 규칙:
+    // - 누구나 투표 현황 조회 가능
+    // - 누구나 상승/하락 투표 기여 가능
+    match /votes/{coinId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}
