@@ -665,6 +665,10 @@ body {
   gap: 0.5rem;
 }
 
+.opinion-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
 .opinion-header {
   display: flex;
   justify-content: space-between;
@@ -690,6 +694,274 @@ body {
   color: #cbd5e1;
 }
 
+/* Fear & Greed gauge card styling */
+.fng-card {
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.fng-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.fng-value-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.fng-value {
+  font-family: var(--font-heading);
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.fng-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.fng-gauge-track {
+  width: 120px;
+  height: 60px;
+  border-radius: 60px 60px 0 0;
+  background: rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.fng-gauge-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 60px 60px 0 0;
+  transform-origin: bottom center;
+  transition: transform 0.8s ease, background 0.8s ease;
+}
+
+/* Sentiment voting bar styling */
+.vote-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.01);
+  padding: 0.75rem;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+.vote-btn-group {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.vote-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  padding: 0.4rem;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.vote-btn.bullish:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--color-green);
+  color: var(--color-green);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
+.vote-btn.bearish:hover {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: var(--color-red);
+  color: var(--color-red);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.15);
+}
+
+.sentiment-bar-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.sentiment-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  overflow: hidden;
+  margin-top: 0.15rem;
+}
+
+.sentiment-fill-bullish {
+  background: var(--color-green);
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.sentiment-fill-bearish {
+  background: var(--color-red);
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+/* Backtesting layout */
+.backtest-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.backtest-inputs-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1.25rem;
+}
+
+.custom-strategy-editor {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.rule-row-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.015);
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.rule-row-container:hover {
+  border-color: rgba(0, 242, 254, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.flex-col-style {
+  display: flex;
+  flex-direction: column;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.input-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.input-select, .input-text {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.65rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s ease;
+}
+
+.input-select:focus, .input-text:focus {
+  border-color: var(--accent-cyan);
+}
+
+.backtest-results-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.backtest-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.backtest-stat-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.backtest-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.backtest-stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.backtest-table-container {
+  overflow-y: auto;
+  max-height: 250px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.backtest-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.backtest-table th {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.backtest-table td {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.backtest-table tr:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+
 /* General Layout helpers */
 .text-center-align { text-align: center; }
 .flex-center { display: flex; align-items: center; justify-content: center; }
@@ -707,6 +979,21 @@ body {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
-    height: auto;
   }
+}
+
+/* 100대 보조지표 select optgroup & option 스타일링 */
+select.input-select optgroup {
+  background-color: #0f172a;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  font-style: normal;
+  padding: 0.5rem;
+}
+
+select.input-select option {
+  background-color: #0b0f19;
+  color: var(--text-primary);
+  font-weight: 400;
+  padding: 0.35rem;
 }
