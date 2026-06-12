@@ -359,6 +359,25 @@ function App() {
     }
   };
 
+  // --- Google Login/Logout Handlers ---
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error("구글 로그인 실패:", error);
+      alert(`구글 로그인 실패: ${error.message}\n(에러 코드: ${error.code})`);
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("로그아웃 실패:", error);
+      alert(`로그아웃 실패: ${error.message}`);
+    }
+  };
+
   // --- Fetch Fear & Greed Index ---
   useEffect(() => {
     const fetchFearGreed = async () => {
@@ -1475,7 +1494,7 @@ function App() {
             {user ? (
               <button 
                 className="filter-btn" 
-                onClick={() => signOut(auth)}
+                onClick={handleGoogleLogout}
                 style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
               >
                 {user.displayName.split(' ')[0]} (Logout)
@@ -1483,7 +1502,7 @@ function App() {
             ) : (
               <button 
                 className="btn-accent" 
-                onClick={() => signInWithPopup(auth, googleProvider)}
+                onClick={handleGoogleLogin}
                 style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
               >
                 Google Login
@@ -1912,7 +1931,7 @@ function App() {
                       </>
                     ) : (
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', textAlign: 'center' }}>
-                        의견을 남기려면 <a href="#" onClick={(e) => { e.preventDefault(); signInWithPopup(auth, googleProvider); }} style={{ color: 'var(--accent-cyan)', fontWeight: '700' }}>로그인</a>해주세요.
+                        의견을 남기려면 <a href="#" onClick={(e) => { e.preventDefault(); handleGoogleLogin(); }} style={{ color: 'var(--accent-cyan)', fontWeight: '700' }}>로그인</a>해주세요.
                       </p>
                     )}
                   </div>
