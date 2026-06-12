@@ -186,6 +186,232 @@ function KakaoAd({ adUnit, width = "728", height = "90" }) {
   );
 }
 
+const CandlestickChart = ({ candles, trades, language }) => {
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const [hoveredCandle, setHoveredCandle] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+  const maxDisplay = 80;
+  const displayCandles = candles.length > maxDisplay ? candles.slice(-maxDisplay) : candles;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const resizeCanvas = () => {
+      const rect = containerRef.current.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = 300 * window.devicePixelRatio;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `300px`;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      draw();
+    };
+
+    const draw = () => {
+      const w = canvas.width / window.devicePixelRatio;
+      const h = canvas.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      if (displayCandles.length === 0) return;
+
+      const prices = displayCandles.flatMap(c => [c.high, c.low]);
+      const minPrice = Math.min(...prices) * 0.995;
+      const maxPrice = Math.max(...prices) * 1.005;
+      const priceRange = maxPrice - minPrice;
+
+      const mapY = (price) => h - 30 - ((price - minPrice) / priceRange) * (h - 50);
+
+      const paddingLeft = 10;
+      const paddingRight = 60;
+      const chartWidth = w - paddingLeft - paddingRight;
+      const candleWidth = chartWidth / displayCandles.length;
+
+      // Draw grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px Space Grotesk';
+      ctx.textAlign = 'left';
+
+      const tickCount = 4;
+      for (let i = 0; i < tickCount; i++) {
+        const targetPrice = minPrice + (priceRange * i) / (tickCount - 1);
+        const y = mapY(targetPrice);
+        
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(w - paddingRight, y);
+        ctx.stroke();
+
+        ctx.fillText(
+          new Intl.NumberFormat(language === 'ko' ? 'ko-KR' : 'en-US', {
+            notation: 'compact',
+            maximumFractionDigits: 1
+          }).format(targetPrice),
+          w - paddingRight + 5,
+          y + 3
+        );
+      }
+
+      // Draw candles
+      displayCandles.forEach((c, idx) => {
+        const x = paddingLeft + idx * candleWidth + candleWidth / 2;
+        const yOpen = mapY(c.open);
+        const yClose = mapY(c.close);
+        const yHigh = mapY(c.high);
+        const yLow = mapY(c.low);
+
+        const isBullish = c.close >= c.open;
+        const color = isBullish ? '#22c55e' : '#ef4444';
+
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+
+        // Wick
+        ctx.beginPath();
+        ctx.moveTo(x, yHigh);
+        ctx.lineTo(x, yLow);
+        ctx.stroke();
+
+        // Body
+        const bodyWidth = Math.max(1, candleWidth * 0.7);
+        ctx.fillRect(x - bodyWidth / 2, Math.min(yOpen, yClose), bodyWidth, Math.max(1, Math.abs(yOpen - yClose)));
+      });
+
+      // Draw markers
+      const startTimestamp = displayCandles[0].time;
+      const endTimestamp = displayCandles[displayCandles.length - 1].time;
+      const activeTrades = trades.filter(t => t.time >= startTimestamp && t.time <= endTimestamp);
+
+      activeTrades.forEach(trade => {
+        const cIdx = displayCandles.findIndex(c => c.time === trade.time);
+        if (cIdx === -1) return;
+
+        const x = paddingLeft + cIdx * candleWidth + candleWidth / 2;
+        const candle = displayCandles[cIdx];
+
+        if (trade.type === 'buy') {
+          const y = mapY(candle.low) + 10;
+          ctx.fillStyle = '#22c55e';
+          ctx.beginPath();
+          ctx.moveTo(x, y - 5);
+          ctx.lineTo(x - 4, y);
+          ctx.lineTo(x + 4, y);
+          ctx.fill();
+
+          ctx.font = 'bold 8px Space Grotesk';
+          ctx.textAlign = 'center';
+          ctx.fillText(language === 'ko' ? '매수' : 'BUY', x, y + 8);
+        } else {
+          const y = mapY(candle.high) - 10;
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath();
+          ctx.moveTo(x, y + 5);
+          ctx.lineTo(x - 4, y);
+          ctx.lineTo(x + 4, y);
+          ctx.fill();
+
+          ctx.font = 'bold 8px Space Grotesk';
+          ctx.textAlign = 'center';
+          ctx.fillText(language === 'ko' ? '매도' : 'SELL', x, y - 4);
+        }
+      });
+
+      // Date labels
+      ctx.fillStyle = '#64748b';
+      ctx.font = '8px Space Grotesk';
+      ctx.textAlign = 'center';
+      
+      const labelInterval = Math.max(1, Math.floor(displayCandles.length / 5));
+      displayCandles.forEach((c, idx) => {
+        if (idx % labelInterval === 0) {
+          const x = paddingLeft + idx * candleWidth + candleWidth / 2;
+          const dateObj = new Date(c.time);
+          const label = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
+          ctx.fillText(label, x, h - 5);
+        }
+      });
+    };
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    return () => window.removeEventListener('resize', resizeCanvas);
+  }, [displayCandles, trades, language]);
+
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas || displayCandles.length === 0) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const paddingLeft = 10;
+    const paddingRight = 60;
+    const chartWidth = rect.width - paddingLeft - paddingRight;
+    const candleWidth = chartWidth / displayCandles.length;
+
+    const idx = Math.floor((mouseX - paddingLeft) / candleWidth);
+    if (idx >= 0 && idx < displayCandles.length) {
+      setHoveredCandle(displayCandles[idx]);
+      setTooltipPos({ x: e.clientX - rect.left + 15, y: e.clientY - rect.top - 85 });
+    } else {
+      setHoveredCandle(null);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredCandle(null);
+  };
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', marginTop: '1.25rem' }} className="glass-panel p-4">
+      <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        📊 {language === 'ko' ? '백테스팅 시세 캔들 및 거래 타점 (최근 80봉)' : 'Price Candles & Trade Execution (Last 80 bars)'}
+      </h4>
+      <canvas 
+        ref={canvasRef} 
+        onMouseMove={handleMouseMove} 
+        onMouseLeave={handleMouseLeave}
+        style={{ display: 'block', cursor: 'crosshair' }} 
+      />
+      {hoveredCandle && (
+        <div style={{
+          position: 'absolute',
+          left: `${tooltipPos.x}px`,
+          top: `${tooltipPos.y}px`,
+          background: 'rgba(9, 12, 26, 0.95)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '6px',
+          padding: '0.5rem',
+          fontSize: '0.72rem',
+          color: 'var(--text-primary)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          pointerEvents: 'none',
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.1rem',
+          fontFamily: 'Space Grotesk'
+        }}>
+          <div style={{ fontWeight: 'bold', color: 'var(--accent-cyan)', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.2rem', marginBottom: '0.2rem' }}>
+            📅 {new Date(hoveredCandle.time).toLocaleString(language)}
+          </div>
+          <div>Open: <span style={{ color: '#fff' }}>{hoveredCandle.open.toLocaleString()}</span></div>
+          <div>High: <span style={{ color: '#22c55e' }}>{hoveredCandle.high.toLocaleString()}</span></div>
+          <div>Low: <span style={{ color: '#ef4444' }}>{hoveredCandle.low.toLocaleString()}</span></div>
+          <div>Close: <span style={{ color: '#fff' }}>{hoveredCandle.close.toLocaleString()}</span></div>
+          <div>Volume: <span style={{ color: 'var(--accent-blue)' }}>{hoveredCandle.volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function App() {
   // --- States ---
   const [language, setLanguage] = useState('ko');
@@ -208,6 +434,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [opinionNickname, setOpinionNickname] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [scannerResults, setScannerResults] = useState([]);
+  const [scannerLoading, setScannerLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [loadingCoins, setLoadingCoins] = useState(false);
   const [limitMessageVisible, setLimitMessageVisible] = useState(false);
@@ -1456,7 +1684,8 @@ function App() {
         trades: tradeLog.reverse(),
         equityCurve,
         priceCurve: candles.slice(startIndex).map(c => [c.time, (c.close / closes[startIndex]) * backtestCapital]),
-        timeframe: backtestTimeframe
+        timeframe: backtestTimeframe,
+        candles: candles.slice(startIndex)
       });
 
     } catch (error) {
@@ -1464,6 +1693,152 @@ function App() {
       alert(error.message || "시뮬레이션 가동에 실패했습니다.");
     } finally {
       setBacktestLoading(false);
+    }
+  };
+
+  // --- Real-time Strategy Scanner ---
+  const runStrategyScanner = async () => {
+    setScannerLoading(true);
+    setScannerResults([]);
+    
+    // Top 10 coins to scan
+    const scannerCoins = [
+      { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' },
+      { id: 'ethereum', symbol: 'eth', name: 'Ethereum' },
+      { id: 'solana', symbol: 'sol', name: 'Solana' },
+      { id: 'ripple', symbol: 'xrp', name: 'Ripple' },
+      { id: 'dogecoin', symbol: 'doge', name: 'Dogecoin' },
+      { id: 'cardano', symbol: 'ada', name: 'Cardano' },
+      { id: 'polkadot', symbol: 'dot', name: 'Polkadot' },
+      { id: 'avalanche-2', symbol: 'avax', name: 'Avalanche' },
+      { id: 'chainlink', symbol: 'link', name: 'Chainlink' },
+      { id: 'tron', symbol: 'trx', name: 'Tron' }
+    ];
+
+    try {
+      const results = await Promise.all(scannerCoins.map(async (coin) => {
+        try {
+          let apiDays = '30';
+          if (['5m', '15m', '30m'].includes(backtestTimeframe)) {
+            apiDays = '1';
+          }
+          
+          const chartData = await fetchWithCache(
+            `https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${currency}&days=${apiDays}&x_cg_demo_api_key=${coingeckoApiKey}`,
+            `backtestChart_${coin.id}_${currency}_${apiDays}`,
+            3600 // 1 hour cache
+          );
+          
+          const rawPrices = chartData.prices;
+          const rawVolumes = chartData.total_volumes;
+          if (!rawPrices || rawPrices.length < 30) return null;
+
+          const candles = resampleToCandles(rawPrices, rawVolumes, backtestTimeframe);
+          if (candles.length < 20) return null;
+
+          const closes = candles.map(c => c.close);
+          
+          const indicators = {};
+          const ensureIndicator = (type, period, dev) => {
+            const key = `${type}_${period}_${dev}`;
+            if (indicators[key]) return;
+            indicators[key] = calculateIndicator(type, period, dev, candles);
+          };
+
+          let activeBuyRules = [...buyRules];
+          let activeSellRules = [...sellRules];
+          let activeBuyOperator = buyLogicalOperator;
+          let activeSellOperator = sellLogicalOperator;
+
+          const prepareRules = (rules) => {
+            rules.forEach(rule => {
+              if (rule.leftType !== 'constant' && !rule.leftType.startsWith('price_') && rule.leftType !== 'volume') {
+                ensureIndicator(rule.leftType, parseInt(rule.leftPeriod) || 14, parseFloat(rule.leftDev) || 2);
+              }
+              if (rule.rightType !== 'constant' && !rule.rightType.startsWith('price_') && rule.rightType !== 'volume') {
+                ensureIndicator(rule.rightType, parseInt(rule.rightPeriod) || 14, parseFloat(rule.rightDev) || 2);
+              }
+            });
+          };
+
+          prepareRules(activeBuyRules);
+          prepareRules(activeSellRules);
+
+          const evalOp = (type, period, dev, value, idx) => {
+            if (type === 'constant') return parseFloat(value) || 0;
+            if (type === 'price_close') return candles[idx].close;
+            if (type === 'price_open') return candles[idx].open;
+            if (type === 'price_high') return candles[idx].high;
+            if (type === 'price_low') return candles[idx].low;
+            if (type === 'volume') return candles[idx].volume;
+            
+            const p = parseInt(period) || 14;
+            const d = parseFloat(dev) || 2;
+            const key = `${type}_${p}_${d}`;
+            return indicators[key] ? indicators[key][idx] : 0;
+          };
+
+          const checkRule = (rule, idx) => {
+            const leftVal = evalOp(rule.leftType, rule.leftPeriod, rule.leftDev, rule.rightValue, idx);
+            const rightVal = evalOp(rule.rightType, rule.rightPeriod, rule.rightDev, rule.rightValue, idx);
+            if (leftVal === null || rightVal === null) return false;
+
+            if (rule.operator === 'cross_above') {
+              if (idx === 0) return false;
+              const prevLeft = evalOp(rule.leftType, rule.leftPeriod, rule.leftDev, rule.rightValue, idx - 1);
+              const prevRight = evalOp(rule.rightType, rule.rightPeriod, rule.rightDev, rule.rightValue, idx - 1);
+              return prevLeft <= prevRight && leftVal > rightVal;
+            }
+            if (rule.operator === 'cross_under') {
+              if (idx === 0) return false;
+              const prevLeft = evalOp(rule.leftType, rule.leftPeriod, rule.leftDev, rule.rightValue, idx - 1);
+              const prevRight = evalOp(rule.rightType, rule.rightPeriod, rule.rightDev, rule.rightValue, idx - 1);
+              return prevLeft >= prevRight && leftVal < rightVal;
+            }
+            if (rule.operator === '>') return leftVal > rightVal;
+            if (rule.operator === '<') return leftVal < rightVal;
+            if (rule.operator === '>=') return leftVal >= rightVal;
+            if (rule.operator === '<=') return leftVal <= rightVal;
+            return false;
+          };
+
+          const checkGroup = (rules, op, idx) => {
+            if (rules.length === 0) return false;
+            return op === 'AND' ? rules.every(r => checkRule(r, idx)) : rules.some(r => checkRule(r, idx));
+          };
+
+          const lastIdx = candles.length - 1;
+          const currentPrice = closes[lastIdx];
+          const prevPrice = closes[lastIdx - 1] || currentPrice;
+          const pctChange = ((currentPrice - prevPrice) / prevPrice) * 100;
+
+          const isBuy = checkGroup(activeBuyRules, activeBuyOperator, lastIdx);
+          const isSell = checkGroup(activeSellRules, activeSellOperator, lastIdx);
+
+          let signal = 'HOLD';
+          if (isBuy && !isSell) signal = 'BUY';
+          else if (isSell && !isBuy) signal = 'SELL';
+
+          return {
+            id: coin.id,
+            name: coin.name,
+            symbol: coin.symbol,
+            price: currentPrice,
+            change: pctChange,
+            signal
+          };
+        } catch (err) {
+          console.error(`${coin.name} 스캔 실패:`, err);
+          return null;
+        }
+      }));
+
+      setScannerResults(results.filter(Boolean));
+    } catch (error) {
+      console.error("전략 스캐너 실행 오류:", error);
+      alert("스캐너 실행 중 오류가 발생했습니다.");
+    } finally {
+      setScannerLoading(false);
     }
   };
 
@@ -2514,7 +2889,7 @@ function App() {
                 )}
 
                 {/* 3. Run button outside sidebar */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
                   <button 
                     className="btn-primary" 
                     style={{ padding: '0.8rem 2.5rem', fontSize: '1.05rem', fontWeight: '700' }}
@@ -2522,6 +2897,14 @@ function App() {
                     disabled={backtestLoading || allCoins.length === 0}
                   >
                     {backtestLoading ? '검증 계산 중...' : t('backtest_run_btn')}
+                  </button>
+                  <button 
+                    className="btn-accent" 
+                    style={{ padding: '0.8rem 2rem', fontSize: '1.05rem', fontWeight: '700' }}
+                    onClick={runStrategyScanner}
+                    disabled={scannerLoading || allCoins.length === 0}
+                  >
+                    {scannerLoading ? '시장 스캔 중...' : '🔍 실시간 전략 스캐너 실행'}
                   </button>
                 </div>
               </div>
@@ -2589,6 +2972,15 @@ function App() {
                         <canvas ref={backtestChartRef}></canvas>
                       </div>
 
+                      {/* Candlestick Chart */}
+                      {backtestResults.candles && (
+                        <CandlestickChart 
+                          candles={backtestResults.candles} 
+                          trades={backtestResults.trades} 
+                          language={language} 
+                        />
+                      )}
+
                       {/* Trades Log list */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <h3 style={{ fontSize: '1.05rem', fontWeight: '700' }}>{t('backtest_trade_log')}</h3>
@@ -2634,6 +3026,67 @@ function App() {
                     </>
                   )}
                 </div>
+
+                {/* Strategy Scanner Results Section */}
+                {(scannerLoading || scannerResults.length > 0) && (
+                  <div className="scanner-results-section glass-panel p-6" style={{ marginTop: '1.5rem', padding: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      🔍 실시간 전략 스캐너 결과 (Timeframe: {backtestTimeframe})
+                    </h3>
+                    
+                    {scannerLoading ? (
+                      <div className="flex-center" style={{ flexDirection: 'column', gap: '1rem', padding: '2rem' }}>
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-accent-cyan"></div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>주요 10대 코인의 실시간 데이터를 분석하여 전략 시그널을 계산하는 중...</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                        {scannerResults.map(res => (
+                          <div key={res.id} className="scanner-card glass-panel" style={{
+                            padding: '1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            border: res.signal === 'BUY' ? '1px solid rgba(34, 197, 94, 0.4)' : res.signal === 'SELL' ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--border-color)',
+                            background: res.signal === 'BUY' ? 'rgba(34, 197, 94, 0.02)' : res.signal === 'SELL' ? 'rgba(239, 68, 68, 0.02)' : 'rgba(255,255,255,0.01)'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: '700', fontSize: '1rem' }}>{res.name}</span>
+                              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: '600' }}>{res.symbol}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>현재가:</span>
+                              <span style={{ fontWeight: '600', fontFamily: 'Space Grotesk' }}>
+                                {new Intl.NumberFormat(language, { style: 'currency', currency: currency }).format(res.price)}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>변동률:</span>
+                              <span style={{ fontWeight: '600', color: res.change >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
+                                {res.change >= 0 ? '+' : ''}{res.change.toFixed(2)}%
+                              </span>
+                            </div>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '0.4rem',
+                              marginTop: '0.5rem',
+                              padding: '0.35rem',
+                              borderRadius: '6px',
+                              fontWeight: '700',
+                              fontSize: '0.85rem',
+                              background: res.signal === 'BUY' ? 'rgba(34, 197, 94, 0.15)' : res.signal === 'SELL' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.05)',
+                              color: res.signal === 'BUY' ? '#22c55e' : res.signal === 'SELL' ? '#ef4444' : '#94a3b8'
+                            }}>
+                              {res.signal === 'BUY' ? '🟢 BUY (매수)' : res.signal === 'SELL' ? '🔴 SELL (매도)' : '⚪ HOLD (관망)'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </main>
           )}
