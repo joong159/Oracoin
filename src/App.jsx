@@ -1469,40 +1469,44 @@ function App() {
           <a href="#" className={`nav-link ${activeTab === 'about' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('about'); }}>소개</a>
         </nav>
 
-        <div className="header-right desktop-only">
-          {user ? (
-            <button 
-              className="filter-btn" 
-              onClick={() => signOut(auth)}
-              style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-            >
-              {user.displayName} (Logout)
-            </button>
-          ) : (
-            <button 
-              className="btn-accent" 
-              onClick={() => signInWithPopup(auth, googleProvider)}
-            >
-              Google Login
-            </button>
-          )}
-          
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            <button className={`filter-btn ${language === 'ko' ? 'active' : ''}`} onClick={() => changeLanguage('ko')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>KO</button>
-            <button className={`filter-btn ${language === 'en' ? 'active' : ''}`} onClick={() => changeLanguage('en')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>EN</button>
+        {/* Right side group containing both auth and toggle */}
+        <div className="header-right-group">
+          <div className="header-right">
+            {user ? (
+              <button 
+                className="filter-btn" 
+                onClick={() => signOut(auth)}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+              >
+                {user.displayName.split(' ')[0]} (Logout)
+              </button>
+            ) : (
+              <button 
+                className="btn-accent" 
+                onClick={() => signInWithPopup(auth, googleProvider)}
+                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
+              >
+                Google Login
+              </button>
+            )}
+            
+            <div className="desktop-only" style={{ display: 'flex', gap: '0.25rem' }}>
+              <button className={`filter-btn ${language === 'ko' ? 'active' : ''}`} onClick={() => changeLanguage('ko')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>KO</button>
+              <button className={`filter-btn ${language === 'en' ? 'active' : ''}`} onClick={() => changeLanguage('en')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>EN</button>
+            </div>
           </div>
-        </div>
 
-        {/* Mobile Menu Toggle Button */}
-        <button 
-          className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`} 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle navigation menu"
-        >
-          <span className="hamburger-bar"></span>
-          <span className="hamburger-bar"></span>
-          <span className="hamburger-bar"></span>
-        </button>
+          {/* Mobile Menu Toggle Button */}
+          <button 
+            className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`} 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            <span className="hamburger-bar"></span>
+            <span className="hamburger-bar"></span>
+            <span className="hamburger-bar"></span>
+          </button>
+        </div>
 
         {/* Mobile Navigation Menu Overlay */}
         <div className={`mobile-nav-overlay ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -1514,24 +1518,6 @@ function App() {
           </nav>
           
           <div className="mobile-nav-actions">
-            {user ? (
-              <button 
-                className="filter-btn w-full-style" 
-                style={{ padding: '0.65rem' }}
-                onClick={() => { signOut(auth); setIsMobileMenuOpen(false); }}
-              >
-                {user.displayName} (Logout)
-              </button>
-            ) : (
-              <button 
-                className="btn-accent w-full-style" 
-                style={{ padding: '0.65rem' }}
-                onClick={() => { signInWithPopup(auth, googleProvider); setIsMobileMenuOpen(false); }}
-              >
-                Google Login
-              </button>
-            )}
-            
             <div style={{ display: 'flex', gap: '0.5rem', width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>
               <button className={`filter-btn ${language === 'ko' ? 'active' : ''}`} onClick={() => { changeLanguage('ko'); setIsMobileMenuOpen(false); }} style={{ flex: 1, padding: '0.5rem' }}>KO</button>
               <button className={`filter-btn ${language === 'en' ? 'active' : ''}`} onClick={() => { changeLanguage('en'); setIsMobileMenuOpen(false); }} style={{ flex: 1, padding: '0.5rem' }}>EN</button>
