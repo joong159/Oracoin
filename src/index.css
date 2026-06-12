@@ -1023,11 +1023,15 @@ body {
   gap: 2rem;
   padding: 6rem 2rem 2rem 2rem;
   z-index: 100;
-  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .mobile-nav-overlay.open {
   right: 0;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .mobile-nav-links {
