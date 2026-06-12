@@ -1222,3 +1222,29 @@ select.input-select option {
   font-weight: 400;
   padding: 0.35rem;
 }
+
+/* AdSense Container styling */
+.ad-container {
+  padding: 0.5rem 1rem 1rem 1rem;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.01) !important;
+  border: 1px dashed var(--border-color) !important;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  min-height: 90px;
+  width: 100%;
+}
+
+.ad-label {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: 1px;
+  margin-bottom: 0.5rem;
+  opacity: 0.6;
+}

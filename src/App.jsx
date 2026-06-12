@@ -157,6 +157,29 @@ const INDICATORS_METADATA = {
   }
 };
 
+// --- Google AdSense Responsive Unit Component ---
+function GoogleAd({ adSlot, adFormat = "auto", style = { display: "block" } }) {
+  useEffect(() => {
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (err) {
+      console.warn("AdSense push warning:", err);
+    }
+  }, []);
+
+  return (
+    <div className="ad-container glass-panel" onClick={(e) => e.stopPropagation()}>
+      <span className="ad-label">ADVERTISEMENT</span>
+      <ins className="adsbygoogle"
+           style={style}
+           data-ad-client="ca-pub-5892610452724367"
+           data-ad-slot={adSlot}
+           data-ad-format={adFormat}
+           data-full-width-responsive="true"></ins>
+    </div>
+  );
+}
+
 function App() {
   // --- States ---
   const [language, setLanguage] = useState('ko');
@@ -1574,6 +1597,11 @@ function App() {
                   );
                 })}
               </div>
+              
+              {/* Sidebar Ad Banner (Desktop Only) */}
+              <div className="desktop-only" style={{ marginTop: 'auto', paddingTop: '1.25rem', width: '100%' }}>
+                <GoogleAd adSlot="2345678901" adFormat="vertical" style={{ display: 'block', height: '240px' }} />
+              </div>
             </aside>
 
             {/* Main Cards View */}
@@ -1611,6 +1639,9 @@ function App() {
                     </div>
                   </div>
                 )}
+
+                {/* Home Top Leaderboard Ad */}
+                <GoogleAd adSlot="1234567890" adFormat="horizontal" />
 
                 {/* Search & Filters */}
                 <div className="toolbar glass-panel">
