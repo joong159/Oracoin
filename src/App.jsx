@@ -157,25 +157,31 @@ const INDICATORS_METADATA = {
   }
 };
 
-// --- Google AdSense Responsive Unit Component ---
-function GoogleAd({ adSlot, adFormat = "auto", style = { display: "block" } }) {
+// --- Kakao AdFit Responsive Unit Component ---
+function KakaoAd({ adUnit, width = "728", height = "90" }) {
   useEffect(() => {
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (err) {
-      console.warn("AdSense push warning:", err);
-    }
-  }, []);
+    // Create script dynamically to trigger rendering of this specific ad area
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "//t1.kakaocdn.net/kas/static/ba.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      try {
+        document.body.removeChild(script);
+      } catch (e) {}
+    };
+  }, [adUnit]);
 
   return (
-    <div className="ad-container glass-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="ad-container glass-panel" onClick={(e) => e.stopPropagation()} style={{ minHeight: `${parseInt(height) + 30}px`, display: "flex", justifyContent: "center" }}>
       <span className="ad-label">ADVERTISEMENT</span>
-      <ins className="adsbygoogle"
-           style={style}
-           data-ad-client="ca-pub-5892610452724367"
-           data-ad-slot={adSlot}
-           data-ad-format={adFormat}
-           data-full-width-responsive="true"></ins>
+      <ins className="kakao_ad_area" 
+           style={{ display: "none" }}
+           data-ad-unit={adUnit}
+           data-ad-width={width}
+           data-ad-height={height}></ins>
     </div>
   );
 }
@@ -1599,8 +1605,8 @@ function App() {
               </div>
               
               {/* Sidebar Ad Banner (Desktop Only) */}
-              <div className="desktop-only" style={{ marginTop: 'auto', paddingTop: '1.25rem', width: '100%' }}>
-                <GoogleAd adSlot="2345678901" adFormat="vertical" style={{ display: 'block', height: '240px' }} />
+              <div className="desktop-only" style={{ marginTop: 'auto', paddingTop: '1.25rem', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <KakaoAd adUnit="DAN-YOUR_SIDEBAR_AD_UNIT" width="160" height="600" />
               </div>
             </aside>
 
@@ -1641,7 +1647,7 @@ function App() {
                 )}
 
                 {/* Home Top Leaderboard Ad */}
-                <GoogleAd adSlot="1234567890" adFormat="horizontal" />
+                <KakaoAd adUnit="DAN-hOXhpahZIAZzl6e5" width="728" height="90" />
 
                 {/* Search & Filters */}
                 <div className="toolbar glass-panel">
