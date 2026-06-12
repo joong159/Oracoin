@@ -76,6 +76,8 @@ export const translations = {
     opinion_post_error: "의견을 게시하는 데 실패했습니다.",
     enter_password_for_delete: "의견을 정말 삭제하시겠습니까?",
     delete_opinion_error: "의견 삭제에 실패했습니다.",
+    opinion_nickname_placeholder: "닉네임 (기본값: Google 닉네임)",
+    opinion_anonymous_label: "익명으로 작성",
     
     // 신규 추가 키 (KO)
     fear_greed_title: "공포·탐욕 지수",
@@ -205,6 +207,8 @@ export const translations = {
     opinion_post_error: "Failed to post opinion.",
     enter_password_for_delete: "Are you sure you want to delete this opinion?",
     delete_opinion_error: "Failed to delete opinion.",
+    opinion_nickname_placeholder: "Nickname (Default: Google Nickname)",
+    opinion_anonymous_label: "Post anonymously",
 
     // New keys (EN)
     fear_greed_title: "Fear & Greed Index",

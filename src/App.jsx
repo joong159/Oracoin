@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, googleProvider, db, functions } from './firebase';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, addDoc, query, onSnapshot, orderBy, deleteDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { translations } from './translations';
@@ -206,6 +206,8 @@ function App() {
   const [briefingCoinSearch, setBriefingCoinSearch] = useState('');
   const [watchlistOnly, setWatchlistOnly] = useState(false);
   const [user, setUser] = useState(null);
+  const [opinionNickname, setOpinionNickname] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
   const [loadingCoins, setLoadingCoins] = useState(false);
   const [limitMessageVisible, setLimitMessageVisible] = useState(false);
@@ -349,9 +351,26 @@ function App() {
 
   // --- Auth State Change Listener ---
   useEffect(() => {
+    // Handle redirect login result
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("구글 리다이렉트 로그인 성공:", result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("구글 리다이렉트 로그인 실패:", error);
+        if (error.code === 'auth/unauthorized-domain') {
+          alert(`구글 로그인 실패: 현재 도메인이 Firebase 승인 도메인 목록에 없습니다.\nFirebase 콘솔에서 이 도메인을 승인해 주세요.\n(에러 코드: ${error.code})`);
+        } else {
+          alert(`구글 로그인 실패: ${error.message}\n(에러 코드: ${error.code})`);
+        }
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         setUser({ uid: currentUser.uid, displayName: currentUser.displayName });
+        setOpinionNickname(currentUser.displayName || '');
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
           const docSnap = await getDoc(userDocRef);
@@ -366,6 +385,7 @@ function App() {
         }
       } else {
         setUser(null);
+        setOpinionNickname('');
         loadLocalData();
       }
     });
@@ -390,11 +410,27 @@ function App() {
 
   // --- Google Login/Logout Handlers ---
   const handleGoogleLogin = async () => {
+    const isMobile = /Mobi|Android|iPhone|iPad|KakaoTalk|Line|Instagram|FBAN|FBAV/i.test(navigator.userAgent);
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (isMobile) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error) {
       console.error("구글 로그인 실패:", error);
-      alert(`구글 로그인 실패: ${error.message}\n(에러 코드: ${error.code})`);
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectError) {
+          console.error("구글 리다이렉트 로그인 실패:", redirectError);
+          alert(`구글 로그인 실패: ${redirectError.message}\n(에러 코드: ${redirectError.code})`);
+        }
+      } else if (error.code === 'auth/unauthorized-domain') {
+        alert(`구글 로그인 실패: 현재 도메인이 Firebase 승인 도메인 목록에 없습니다.\nFirebase 콘솔에서 이 도메인을 승인해 주세요.\n(에러 코드: ${error.code})`);
+      } else {
+        alert(`구글 로그인 실패: ${error.message}\n(에러 코드: ${error.code})`);
+      }
     }
   };
 
@@ -1159,9 +1195,15 @@ function App() {
     if (!opinionContent.trim() || !user) return;
     setOpinionPosting(true);
     try {
+      let finalNickname = opinionNickname.trim() || user.displayName || 'Anonymous';
+      if (isAnonymous) {
+        const uidHash = user.uid.slice(0, 4);
+        finalNickname = `${language === 'ko' ? '익명' : 'Anonymous'}_${uidHash}`;
+      }
+      
       await addDoc(collection(db, "opinions"), {
         uid: user.uid,
-        nickname: user.displayName,
+        nickname: finalNickname,
         content: opinionContent.trim(),
         createdAt: serverTimestamp(),
         coinTarget: document.querySelector('.ai-briefing-results-container h2')?.textContent || 'General'
@@ -1283,14 +1325,16 @@ function App() {
 
       // 피연산자 평가 함수
       const evalOp = (type, period, dev, value, idx) => {
-        if (type === 'constant') return parseFloat(value);
+        if (type === 'constant') return parseFloat(value) || 0;
         if (type === 'price_close') return candles[idx].close;
         if (type === 'price_open') return candles[idx].open;
         if (type === 'price_high') return candles[idx].high;
         if (type === 'price_low') return candles[idx].low;
         if (type === 'volume') return candles[idx].volume;
         
-        const key = `${type}_${period}_${dev}`;
+        const p = parseInt(period) || 14;
+        const d = parseFloat(dev) || 2;
+        const key = `${type}_${p}_${d}`;
         return indicators[key] ? indicators[key][idx] : 0;
       };
 
@@ -1344,7 +1388,10 @@ function App() {
 
       for (let i = startIndex; i < candles.length; i++) {
         const price = candles[i].close;
-        const date = new Date(candles[i].time).toLocaleDateString(language);
+        const dateObj = new Date(candles[i].time);
+        const date = ['5m', '15m', '30m', '1h', '4h'].includes(backtestTimeframe)
+          ? `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`
+          : dateObj.toLocaleDateString(language);
 
         const buySignal = checkGroup(activeBuyRules, activeBuyOperator, i) && holdings === 0;
         const sellSignal = checkGroup(activeSellRules, activeSellOperator, i) && holdings > 0;
@@ -1354,6 +1401,7 @@ function App() {
           tradeLog.push({
             type: 'buy',
             date,
+            time: candles[i].time,
             price,
             cashSpent: cash,
             holdingsBought: holdings
@@ -1367,6 +1415,7 @@ function App() {
           tradeLog.push({
             type: 'sell',
             date,
+            time: candles[i].time,
             price,
             cashReceived,
             returnPercentage: returnVal
@@ -1406,7 +1455,8 @@ function App() {
         tradeCount: tradeLog.length,
         trades: tradeLog.reverse(),
         equityCurve,
-        priceCurve: candles.slice(startIndex).map(c => [c.time, (c.close / closes[startIndex]) * backtestCapital])
+        priceCurve: candles.slice(startIndex).map(c => [c.time, (c.close / closes[startIndex]) * backtestCapital]),
+        timeframe: backtestTimeframe
       });
 
     } catch (error) {
@@ -1424,9 +1474,41 @@ function App() {
     const ctx = backtestChartRef.current.getContext('2d');
     if (backtestChartInstance.current) backtestChartInstance.current.destroy();
 
-    const labels = backtestResults.equityCurve.map(p => new Date(p[0]).toLocaleDateString(language));
+    const labels = backtestResults.equityCurve.map(p => {
+      const dateObj = new Date(p[0]);
+      return ['5m', '15m', '30m', '1h', '4h'].includes(backtestResults.timeframe)
+        ? `${dateObj.getMonth() + 1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`
+        : dateObj.toLocaleDateString(language);
+    });
+
     const strategyData = backtestResults.equityCurve.map(p => p[1]);
     const holdData = backtestResults.priceCurve.map(p => p[1]);
+
+    // Build buy and sell markers mapping
+    const buyTimes = new Set();
+    const sellTimes = new Set();
+    backtestResults.trades.forEach(t => {
+      if (t.type === 'buy') buyTimes.add(t.time);
+      if (t.type === 'sell') sellTimes.add(t.time);
+    });
+
+    const buyMarkers = [];
+    const sellMarkers = [];
+
+    backtestResults.equityCurve.forEach(p => {
+      const time = p[0];
+      const val = p[1];
+      if (buyTimes.has(time)) {
+        buyMarkers.push(val);
+        sellMarkers.push(null);
+      } else if (sellTimes.has(time)) {
+        buyMarkers.push(null);
+        sellMarkers.push(val);
+      } else {
+        buyMarkers.push(null);
+        sellMarkers.push(null);
+      }
+    });
 
     backtestChartInstance.current = new Chart(ctx, {
       type: 'line',
@@ -1450,6 +1532,28 @@ function App() {
             borderWidth: 1.5,
             borderDash: [5, 5],
             pointRadius: 0,
+            fill: false,
+          },
+          {
+            label: language === 'ko' ? '매수 지점 (Buy)' : 'Buy Point',
+            data: buyMarkers,
+            borderColor: '#22c55e',
+            backgroundColor: '#22c55e',
+            pointStyle: 'circle',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            showLine: false,
+            fill: false,
+          },
+          {
+            label: language === 'ko' ? '매도 지점 (Sell)' : 'Sell Point',
+            data: sellMarkers,
+            borderColor: '#ef4444',
+            backgroundColor: '#ef4444',
+            pointStyle: 'circle',
+            pointRadius: 6,
+            pointHoverRadius: 8,
+            showLine: false,
             fill: false,
           }
         ]
@@ -1956,11 +2060,33 @@ function App() {
                           value={opinionContent}
                           onChange={(e) => setOpinionContent(e.target.value)}
                         />
-                        <div style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <input 
+                              type="text" 
+                              className="input-text" 
+                              style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem', width: '220px', height: '32px' }} 
+                              placeholder={t('opinion_nickname_placeholder')}
+                              value={isAnonymous ? '' : opinionNickname}
+                              disabled={isAnonymous}
+                              onChange={(e) => setOpinionNickname(e.target.value)}
+                            />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
+                              <input 
+                                type="checkbox" 
+                                checked={isAnonymous}
+                                onChange={(e) => setIsAnonymous(e.target.checked)}
+                                style={{ cursor: 'pointer' }}
+                              />
+                              {t('opinion_anonymous_label')}
+                            </label>
+                          </div>
+                          
                           <button 
                             className="btn-accent" 
                             onClick={handlePostOpinion}
                             disabled={!opinionContent.trim() || opinionPosting}
+                            style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
                             {opinionPosting ? t('posting_opinion') : t('post_opinion_btn')}
                           </button>
@@ -2152,7 +2278,7 @@ function App() {
                                     style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '60px' }}
                                     placeholder="Period"
                                     value={rule.leftPeriod}
-                                    onChange={(e) => updateRule(rule.id, 'leftPeriod', parseInt(e.target.value) || 14, true)}
+                                    onChange={(e) => updateRule(rule.id, 'leftPeriod', e.target.value, true)}
                                   />
                                   {(rule.leftType.startsWith('bb_') || rule.leftType.startsWith('keltner_') || rule.leftType === 'supertrend' || rule.leftType === 'chande_kroll') && (
                                     <input 
@@ -2161,7 +2287,7 @@ function App() {
                                       style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '50px' }}
                                       placeholder="Dev"
                                       value={rule.leftDev}
-                                      onChange={(e) => updateRule(rule.id, 'leftDev', parseFloat(e.target.value) || 2, true)}
+                                      onChange={(e) => updateRule(rule.id, 'leftDev', e.target.value, true)}
                                     />
                                   )}
                                 </div>
@@ -2200,7 +2326,7 @@ function App() {
                                   className="input-text" 
                                   style={{ fontSize: '0.75rem', padding: '0.1rem 0.25rem', height: 'auto' }}
                                   value={rule.rightValue}
-                                  onChange={(e) => updateRule(rule.id, 'rightValue', parseFloat(e.target.value) || 0, true)}
+                                  onChange={(e) => updateRule(rule.id, 'rightValue', e.target.value, true)}
                                 />
                               ) : (
                                 !rule.rightType.startsWith('price_') && rule.rightType !== 'volume' && (
@@ -2211,7 +2337,7 @@ function App() {
                                       style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '60px' }}
                                       placeholder="Period"
                                       value={rule.rightPeriod}
-                                      onChange={(e) => updateRule(rule.id, 'rightPeriod', parseInt(e.target.value) || 14, true)}
+                                      onChange={(e) => updateRule(rule.id, 'rightPeriod', e.target.value, true)}
                                     />
                                     {(rule.rightType.startsWith('bb_') || rule.rightType.startsWith('keltner_') || rule.rightType === 'supertrend' || rule.rightType === 'chande_kroll') && (
                                       <input 
@@ -2220,7 +2346,7 @@ function App() {
                                         style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '50px' }}
                                         placeholder="Dev"
                                         value={rule.rightDev}
-                                        onChange={(e) => updateRule(rule.id, 'rightDev', parseFloat(e.target.value) || 2, true)}
+                                        onChange={(e) => updateRule(rule.id, 'rightDev', e.target.value, true)}
                                       />
                                     )}
                                   </div>
@@ -2288,7 +2414,7 @@ function App() {
                                     style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '60px' }}
                                     placeholder="Period"
                                     value={rule.leftPeriod}
-                                    onChange={(e) => updateRule(rule.id, 'leftPeriod', parseInt(e.target.value) || 14, false)}
+                                    onChange={(e) => updateRule(rule.id, 'leftPeriod', e.target.value, false)}
                                   />
                                   {(rule.leftType.startsWith('bb_') || rule.leftType.startsWith('keltner_') || rule.leftType === 'supertrend' || rule.leftType === 'chande_kroll') && (
                                     <input 
@@ -2297,7 +2423,7 @@ function App() {
                                       style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '50px' }}
                                       placeholder="Dev"
                                       value={rule.leftDev}
-                                      onChange={(e) => updateRule(rule.id, 'leftDev', parseFloat(e.target.value) || 2, false)}
+                                      onChange={(e) => updateRule(rule.id, 'leftDev', e.target.value, false)}
                                     />
                                   )}
                                 </div>
@@ -2336,7 +2462,7 @@ function App() {
                                   className="input-text" 
                                   style={{ fontSize: '0.75rem', padding: '0.1rem 0.25rem', height: 'auto' }}
                                   value={rule.rightValue}
-                                  onChange={(e) => updateRule(rule.id, 'rightValue', parseFloat(e.target.value) || 0, false)}
+                                  onChange={(e) => updateRule(rule.id, 'rightValue', e.target.value, false)}
                                 />
                               ) : (
                                 !rule.rightType.startsWith('price_') && rule.rightType !== 'volume' && (
@@ -2347,7 +2473,7 @@ function App() {
                                       style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '60px' }}
                                       placeholder="Period"
                                       value={rule.rightPeriod}
-                                      onChange={(e) => updateRule(rule.id, 'rightPeriod', parseInt(e.target.value) || 14, false)}
+                                      onChange={(e) => updateRule(rule.id, 'rightPeriod', e.target.value, false)}
                                     />
                                     {(rule.rightType.startsWith('bb_') || rule.rightType.startsWith('keltner_') || rule.rightType === 'supertrend' || rule.rightType === 'chande_kroll') && (
                                       <input 
@@ -2356,7 +2482,7 @@ function App() {
                                         style={{ fontSize: '0.7rem', padding: '0.1rem 0.25rem', height: 'auto', width: '50px' }}
                                         placeholder="Dev"
                                         value={rule.rightDev}
-                                        onChange={(e) => updateRule(rule.id, 'rightDev', parseFloat(e.target.value) || 2, false)}
+                                        onChange={(e) => updateRule(rule.id, 'rightDev', e.target.value, false)}
                                       />
                                     )}
                                   </div>
