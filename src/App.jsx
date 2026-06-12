@@ -995,7 +995,7 @@ function App() {
       let analysisData = null;
 
       if (geminiApiKey) {
-        // Direct client-side call to Google Gemini API
+        // Direct client-side call to Google Gemini API (local testing)
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
@@ -1043,6 +1043,30 @@ function App() {
           analysisData = JSON.parse(text);
         } else {
           console.warn("Gemini Direct API 호출 실패, Cloud Function/로컬 분석 시도...");
+        }
+      } else {
+        // Secure server-side call via Cloudflare Pages Function (production default)
+        try {
+          const response = await fetch('/api/briefing', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              lang: language,
+              coins: coinNames,
+              userContext
+            })
+          });
+          if (response.ok) {
+            let text = await response.text();
+            text = text.replace(/^\s*```json/i, '').replace(/```\s*$/i, '').trim();
+            analysisData = JSON.parse(text);
+          } else {
+            console.warn("Cloudflare Pages Function /api/briefing 호출 실패, Firebase/로컬 분석 시도...");
+          }
+        } catch (cfErr) {
+          console.warn("Cloudflare Pages Function 호출 실패:", cfErr);
         }
       }
 
@@ -1435,16 +1459,17 @@ function App() {
     <div className="app-container">
       {/* Header */}
       <header className="main-header">
-        <a href="#" className="logo-text" onClick={(e) => { e.preventDefault(); setActiveTab('home'); }}>Oracoin</a>
+        <a href="#" className="logo-text" onClick={(e) => { e.preventDefault(); setActiveTab('home'); setIsMobileMenuOpen(false); }}>Oracoin</a>
         
-        <nav className="main-nav">
+        {/* Desktop Navigation */}
+        <nav className="main-nav desktop-only">
           <a href="#" className={`nav-link ${activeTab === 'home' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('home'); }}>홈</a>
           <a href="#" className={`nav-link ${activeTab === 'blog' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('blog'); }}>AI 브리핑</a>
           <a href="#" className={`nav-link ${activeTab === 'backtest' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('backtest'); }}>{t('backtest_tab')}</a>
           <a href="#" className={`nav-link ${activeTab === 'about' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('about'); }}>소개</a>
         </nav>
 
-        <div className="header-right">
+        <div className="header-right desktop-only">
           {user ? (
             <button 
               className="filter-btn" 
@@ -1465,6 +1490,52 @@ function App() {
           <div style={{ display: 'flex', gap: '0.25rem' }}>
             <button className={`filter-btn ${language === 'ko' ? 'active' : ''}`} onClick={() => changeLanguage('ko')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>KO</button>
             <button className={`filter-btn ${language === 'en' ? 'active' : ''}`} onClick={() => changeLanguage('en')} style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>EN</button>
+          </div>
+        </div>
+
+        {/* Mobile Menu Toggle Button */}
+        <button 
+          className={`mobile-menu-toggle ${isMobileMenuOpen ? 'active' : ''}`} 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label="Toggle navigation menu"
+        >
+          <span className="hamburger-bar"></span>
+          <span className="hamburger-bar"></span>
+          <span className="hamburger-bar"></span>
+        </button>
+
+        {/* Mobile Navigation Menu Overlay */}
+        <div className={`mobile-nav-overlay ${isMobileMenuOpen ? 'open' : ''}`}>
+          <nav className="mobile-nav-links">
+            <a href="#" className={`mobile-nav-link ${activeTab === 'home' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('home'); setIsMobileMenuOpen(false); }}>홈</a>
+            <a href="#" className={`mobile-nav-link ${activeTab === 'blog' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('blog'); setIsMobileMenuOpen(false); }}>AI 브리핑</a>
+            <a href="#" className={`mobile-nav-link ${activeTab === 'backtest' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('backtest'); setIsMobileMenuOpen(false); }}>{t('backtest_tab')}</a>
+            <a href="#" className={`mobile-nav-link ${activeTab === 'about' ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); setActiveTab('about'); setIsMobileMenuOpen(false); }}>소개</a>
+          </nav>
+          
+          <div className="mobile-nav-actions">
+            {user ? (
+              <button 
+                className="filter-btn w-full-style" 
+                style={{ padding: '0.65rem' }}
+                onClick={() => { signOut(auth); setIsMobileMenuOpen(false); }}
+              >
+                {user.displayName} (Logout)
+              </button>
+            ) : (
+              <button 
+                className="btn-accent w-full-style" 
+                style={{ padding: '0.65rem' }}
+                onClick={() => { signInWithPopup(auth, googleProvider); setIsMobileMenuOpen(false); }}
+              >
+                Google Login
+              </button>
+            )}
+            
+            <div style={{ display: 'flex', gap: '0.5rem', width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}>
+              <button className={`filter-btn ${language === 'ko' ? 'active' : ''}`} onClick={() => { changeLanguage('ko'); setIsMobileMenuOpen(false); }} style={{ flex: 1, padding: '0.5rem' }}>KO</button>
+              <button className={`filter-btn ${language === 'en' ? 'active' : ''}`} onClick={() => { changeLanguage('en'); setIsMobileMenuOpen(false); }} style={{ flex: 1, padding: '0.5rem' }}>EN</button>
+            </div>
           </div>
         </div>
       </header>
