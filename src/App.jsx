@@ -647,17 +647,26 @@ function App() {
       }
     } catch (error) {
       console.error("구글 로그인 실패:", error);
+      
+      // 상세 에러 문자열 생성
+      let detailMessage = "";
+      if (error.customData) {
+        detailMessage = `\n[상세 정보]: ${JSON.stringify(error.customData)}`;
+      } else if (error.message) {
+        detailMessage = `\n[메시지]: ${error.message}`;
+      }
+
       if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
         try {
           await signInWithRedirect(auth, googleProvider);
         } catch (redirectError) {
           console.error("구글 리다이렉트 로그인 실패:", redirectError);
-          alert(`구글 로그인 실패: ${redirectError.message}\n(에러 코드: ${redirectError.code})`);
+          alert(`구글 로그인 실패: ${redirectError.message}\n(에러 코드: ${redirectError.code})${detailMessage}`);
         }
       } else if (error.code === 'auth/unauthorized-domain') {
-        alert(`구글 로그인 실패: 현재 도메인이 Firebase 승인 도메인 목록에 없습니다.\nFirebase 콘솔에서 이 도메인을 승인해 주세요.\n(에러 코드: ${error.code})`);
+        alert(`구글 로그인 실패: 현재 도메인이 Firebase 승인 도메인 목록에 없습니다.\nFirebase 콘솔에서 이 도메인을 승인해 주세요.\n(에러 코드: ${error.code})${detailMessage}`);
       } else {
-        alert(`구글 로그인 실패: ${error.message}\n(에러 코드: ${error.code})`);
+        alert(`구글 로그인 실패: ${error.message}\n(에러 코드: ${error.code})${detailMessage}\n\n💡 해결 방법: Firebase Console에서 Google 로그인 제공업체 활성화 및 프로젝트 지원 이메일 등록 여부를 확인해 주세요.`);
       }
     }
   };
