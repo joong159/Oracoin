@@ -418,11 +418,11 @@ function App() {
   const [currency, setCurrency] = useState('krw');
   const [allCoins, setAllCoins] = useState([]);
   const [displayedCoins, setDisplayedCoins] = useState([]);
-  const [selectedCoinIds, setSelectedCoinIds] = useState(['bitcoin', 'ethereum', 'ripple', 'dogecoin', 'solana', 'cardano']);
+  const [selectedCoinIds, setSelectedCoinIds] = useState(['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-DOGE', 'KRW-SOL', 'KRW-ADA']);
   const [favorites, setFavorites] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const [backtestCoin, setBacktestCoin] = useState('bitcoin');
+  const [backtestCoin, setBacktestCoin] = useState('KRW-BTC');
   const [backtestCoinSearch, setBacktestCoinSearch] = useState('');
   const [backtestPeriod, setBacktestPeriod] = useState('365'); // '30', '90', '180', '365', '1095'
   const [backtestCapital, setBacktestCapital] = useState(1000000);
@@ -751,11 +751,11 @@ function App() {
     }
   };
 
-  // --- Fetch 100 Sidebar Coins ---
+  // --- Fetch 100 Sidebar Coins (Upbit API Migration) ---
   useEffect(() => {
     const fetchSidebarCoins = async () => {
       try {
-        const cacheKey = `sidebarCoins_${currency}`;
+        const cacheKey = `sidebarCoins_upbit`;
         const cached = localStorage.getItem(cacheKey);
         const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
         
@@ -771,13 +771,41 @@ function App() {
           }
         }
 
-        // 날짜가 다르거나 캐시가 없으면 API 호출하여 상위 100위 최신 데이터 로드
-        const response = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&order=market_cap_desc&per_page=100&page=1&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
-        if (!response.ok) throw new Error('Failed to fetch sidebar coins');
-        const data = await response.json();
+        // 업비트 마켓 목록 로드 (CORS 프록시 적용)
+        const marketRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/market/all?isDetails=false')}`);
+        if (!marketRes.ok) throw new Error('Failed to fetch Upbit markets');
+        const markets = await marketRes.json();
         
-        setAllCoins(data);
-        localStorage.setItem(cacheKey, JSON.stringify({ date: todayStr, data }));
+        // 원화 마켓만 필터링
+        const krwMarkets = markets.filter(m => m.market.startsWith('KRW-'));
+        const codes = krwMarkets.map(m => m.market).join(',');
+
+        // 티커 시세 로드
+        const tickerRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/ticker?markets=' + codes)}`);
+        if (!tickerRes.ok) throw new Error('Failed to fetch Upbit tickers');
+        const tickers = await tickerRes.json();
+
+        // 코인게코 포맷에 맞춰 데이터 매핑 (UI 코드 변경 방지)
+        const mappedCoins = tickers.map(ticker => {
+          const marketInfo = krwMarkets.find(m => m.market === ticker.market);
+          const symbol = ticker.market.split('-')[1]; // "BTC"
+          return {
+            id: ticker.market, // "KRW-BTC"
+            name: marketInfo ? marketInfo.korean_name : symbol,
+            symbol: symbol.toLowerCase(),
+            image: `https://static.upbit.com/logos/${symbol}.png`,
+            current_price: ticker.trade_price,
+            price_change_percentage_24h: ticker.signed_change_rate * 100,
+            market_cap: ticker.acc_trade_price_24h, // 거래대금을 마켓캡 정렬 기준으로 차용
+            trade_volume: ticker.acc_trade_volume_24h
+          };
+        });
+
+        // 거래대금 순으로 정렬하여 상위 100개 또는 전체 로드
+        const sortedCoins = mappedCoins.sort((a, b) => b.market_cap - a.market_cap);
+        
+        setAllCoins(sortedCoins);
+        localStorage.setItem(cacheKey, JSON.stringify({ date: todayStr, data: sortedCoins }));
       } catch (error) {
         console.error("사이드바 코인 목록 로딩 실패:", error);
       }
@@ -786,7 +814,7 @@ function App() {
     fetchSidebarCoins();
   }, [currency]);
 
-  // --- Fetch detailed info & calculations ---
+  // --- Fetch detailed info & calculations (Upbit API Migration) ---
   useEffect(() => {
     const loadCoinData = async () => {
       if (selectedCoinIds.length === 0) {
@@ -796,27 +824,55 @@ function App() {
       setLoadingCoins(true);
       try {
         const ids = selectedCoinIds.join(',');
+        
+        // 업비트 티커 시세 로드
         const marketData = await fetchWithCache(
-          `https://api.coingecko.com/api/v3/coins/markets?vs_currency=${currency}&ids=${ids}&order=market_cap_desc&price_change_percentage=24h&x_cg_demo_api_key=${coingeckoApiKey}`,
-          `marketData_${ids}_${currency}`,
-          300 // 5분 캐시
+          `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/ticker?markets=' + ids)}`,
+          `marketData_${ids}_upbit`,
+          10 // 10초 캐시
         );
 
-        const coinDataPromises = marketData.map(async (coin) => {
+        // 전체 마켓 코드 및 한글명 매핑용 정보
+        const allMarketRes = await fetchWithCache(
+          `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/market/all?isDetails=false')}`,
+          `allMarketsList`,
+          86400 // 24시간 캐시
+        );
+
+        const coinDataPromises = marketData.map(async (ticker) => {
+          const coinId = ticker.market;
+          const symbol = coinId.split('-')[1];
+          const marketInfo = allMarketRes.find(m => m.market === coinId);
+
+          const coin = {
+            id: coinId,
+            name: marketInfo ? marketInfo.korean_name : symbol,
+            symbol: symbol.toLowerCase(),
+            image: `https://static.upbit.com/logos/${symbol}.png`,
+            current_price: ticker.trade_price,
+            price_change_percentage_24h: ticker.signed_change_rate * 100,
+            market_cap: ticker.acc_trade_price_24h,
+            trade_volume: ticker.acc_trade_volume_24h
+          };
+
           try {
+            // 과거 30일 시세 캔들 로드
             const chartData = await fetchWithCache(
-              `https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${currency}&days=30&x_cg_demo_api_key=${coingeckoApiKey}`,
-              `coinChart_30d_${coin.id}_${currency}`,
+              `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.upbit.com/v1/candles/days?market=${coinId}&count=30`)}`,
+              `coinChart_30d_${coinId}`,
               3600 // 1시간 캐시
             );
-            const prices = chartData.prices.map(p => p[1]).slice(-21);
+            
+            // 시간순(과거->현재)으로 정렬하여 종가 추출
+            const prices = chartData.slice().reverse().map(c => c.trade_price);
+            
             const rsi = calculateRSI(prices.slice(-15));
-            const ma_20 = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const ma_20 = prices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(prices.length, 20);
             const ma_20_day_comparison = coin.current_price > ma_20 ? 'above' : 'below';
 
             return { ...coin, rsi, ma_20_day_comparison };
           } catch (err) {
-            console.error(`${coin.id} 차트 데이터 획득 실패:`, err);
+            console.error(`${coinId} 차트 데이터 획득 실패:`, err);
             return { ...coin, rsi: 50, ma_20_day_comparison: 'neutral' };
           }
         });
@@ -832,6 +888,83 @@ function App() {
 
     loadCoinData();
   }, [selectedCoinIds, currency]);
+
+  // --- Upbit WebSocket Realtime Price Sync ---
+  useEffect(() => {
+    if (allCoins.length === 0) return;
+
+    let ws;
+    let isConnected = true;
+
+    const connectWebSocket = () => {
+      ws = new WebSocket('wss://api.upbit.com/websocket/v1');
+      ws.binaryType = 'blob';
+
+      ws.onopen = () => {
+        if (!isConnected) return;
+        const codes = allCoins.map(c => c.id);
+        ws.send(JSON.stringify([
+          { ticket: "oracoin-realtime" },
+          { type: "ticker", codes: codes }
+        ]));
+      };
+
+      ws.onmessage = async (event) => {
+        if (!isConnected) return;
+        try {
+          const text = await event.data.text();
+          const ticker = JSON.parse(text);
+          
+          // allCoins 실시간 가격 업데이트
+          setAllCoins(prevCoins => 
+            prevCoins.map(c => {
+              if (c.id === ticker.code) {
+                return {
+                  ...c,
+                  current_price: ticker.trade_price,
+                  price_change_percentage_24h: ticker.signed_change_rate * 100
+                };
+              }
+              return c;
+            })
+          );
+
+          // displayedCoins 실시간 가격 업데이트
+          setDisplayedCoins(prevCoins => 
+            prevCoins.map(c => {
+              if (c.id === ticker.code) {
+                return {
+                  ...c,
+                  current_price: ticker.trade_price,
+                  price_change_percentage_24h: ticker.signed_change_rate * 100
+                };
+              }
+              return c;
+            })
+          );
+        } catch (e) {
+          // 파싱 실패 우회
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("웹소켓 에러:", err);
+      };
+
+      ws.onclose = () => {
+        if (isConnected) {
+          setTimeout(connectWebSocket, 3000); // 3초 후 재연결
+        }
+      };
+    };
+
+    connectWebSocket();
+
+    return () => {
+      isConnected = false;
+      if (ws) ws.close();
+    };
+  }, [allCoins.length]);
 
   // --- RSI Calculation Helper ---
   const calculateRSI = (prices) => {
@@ -1115,19 +1248,29 @@ function App() {
     const fetchModalDetails = async () => {
       setModalLoading(true);
       try {
-        const details = await fetchWithCache(
-          `https://api.coingecko.com/api/v3/coins/${selectedModalCoinId}?localization=true&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`,
-          `modalDetails_${selectedModalCoinId}`,
-          86400 // 24시간 캐시
-        );
+        const marketName = allCoins.find(c => c.id === selectedModalCoinId)?.name || selectedModalCoinId;
+        const details = {
+          name: marketName,
+          description: {
+            ko: translations[language]?.desc?.[selectedModalCoinId] || `${marketName}은(는) 업비트 원화 마켓에 등록된 디지털 자산입니다.`,
+            en: `${marketName} is a digital asset listed on the Upbit KRW market.`
+          },
+          links: {
+            homepage: [`https://upbit.com/exchange?code=${selectedModalCoinId}`]
+          }
+        };
+
         const chartData = await fetchWithCache(
-          `https://api.coingecko.com/api/v3/coins/${selectedModalCoinId}/market_chart?vs_currency=${currency}&days=${modalRange}&x_cg_demo_api_key=${coingeckoApiKey}`,
-          `modalChart_${selectedModalCoinId}_${currency}_${modalRange}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.upbit.com/v1/candles/days?market=${selectedModalCoinId}&count=${modalRange}`)}`,
+          `modalChart_${selectedModalCoinId}_upbit_${modalRange}`,
           900 // 15분 캐시
         );
 
+        // 시간순(과거->현재) 정렬 및 차트 데이터 매핑
+        const formattedPrices = chartData.slice().reverse().map(c => [c.timestamp, c.trade_price]);
+
         setModalCoinDetails(details);
-        setModalChartData(chartData.prices);
+        setModalChartData(formattedPrices);
       } catch (error) {
         console.error("상세 데이터 로딩 실패:", error);
       } finally {
@@ -1136,7 +1279,7 @@ function App() {
     };
 
     fetchModalDetails();
-  }, [selectedModalCoinId, currency, modalRange]);
+  }, [selectedModalCoinId, currency, modalRange, language, allCoins]);
 
   // Chart rendering effect
   useEffect(() => {
@@ -1476,31 +1619,47 @@ function App() {
     setBacktestResults(null);
 
     try {
-      // 1. 타임프레임별로 API 호출 기간(days)을 조절
-      let apiDays = backtestPeriod;
-      if (['5m', '15m', '30m'].includes(backtestTimeframe)) {
-        apiDays = '1'; // 분봉은 최근 1일 원시 데이터 사용
-      } else if (['1h', '4h'].includes(backtestTimeframe)) {
-        apiDays = '30'; // 시간봉은 최근 30일 원시 데이터 사용
+      // 1. 타임프레임별로 업비트 캔들 API URL 설정 (최대 200개 캔들)
+      let candleUrl = '';
+      const count = Math.min(parseInt(backtestPeriod) || 200, 200);
+      const tf = backtestTimeframe.toLowerCase();
+      
+      if (tf === '5m') {
+        candleUrl = `https://api.upbit.com/v1/candles/minutes/5?market=${backtestCoin}&count=${count}`;
+      } else if (tf === '15m') {
+        candleUrl = `https://api.upbit.com/v1/candles/minutes/15?market=${backtestCoin}&count=${count}`;
+      } else if (tf === '30m') {
+        candleUrl = `https://api.upbit.com/v1/candles/minutes/30?market=${backtestCoin}&count=${count}`;
+      } else if (tf === '1h' || tf === '1h') {
+        candleUrl = `https://api.upbit.com/v1/candles/minutes/60?market=${backtestCoin}&count=${count}`;
+      } else if (tf === '4h' || tf === '4h') {
+        candleUrl = `https://api.upbit.com/v1/candles/minutes/240?market=${backtestCoin}&count=${count}`;
+      } else if (tf === '1w') {
+        candleUrl = `https://api.upbit.com/v1/candles/weeks?market=${backtestCoin}&count=${count}`;
+      } else {
+        candleUrl = `https://api.upbit.com/v1/candles/days?market=${backtestCoin}&count=${count}`;
       }
 
-      const chartData = await fetchWithCache(
-        `https://api.coingecko.com/api/v3/coins/${backtestCoin}/market_chart?vs_currency=${currency}&days=${apiDays}&x_cg_demo_api_key=${coingeckoApiKey}`,
-        `backtestChart_${backtestCoin}_${currency}_${apiDays}`,
+      const rawCandles = await fetchWithCache(
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(candleUrl)}`,
+        `backtestCandles_${backtestCoin}_${backtestTimeframe}_${count}`,
         3600 // 1시간 캐시
       );
 
-      const rawPrices = chartData.prices;
-      const rawVolumes = chartData.total_volumes;
-      if (!rawPrices || rawPrices.length < 30) {
-        throw new Error("충분한 가격 데이터가 제공되지 않았습니다.");
+      if (!rawCandles || rawCandles.length < 20) {
+        throw new Error("충분한 가격 데이터가 제공되지 않았습니다. 업비트 점검 중이거나 지원하지 않는 마켓 코드일 수 있습니다.");
       }
 
-      // 2. 리샘플링을 통해 캔들 데이터 생성
-      const candles = resampleToCandles(rawPrices, rawVolumes, backtestTimeframe);
-      if (candles.length < 20) {
-        throw new Error("리샘플링된 캔들 데이터가 너무 적어 백테스팅을 진행할 수 없습니다. 더 긴 검증 기간을 선택해 주세요.");
-      }
+      // 2. 시간순(과거->현재) 정렬 및 표준 포맷 변환
+      const candles = rawCandles.slice().reverse().map(c => ({
+        time: c.candle_date_time_kst || c.candle_date_time_utc,
+        open: c.opening_price,
+        high: c.high_price,
+        low: c.low_price,
+        close: c.trade_price,
+        volume: c.candle_acc_trade_volume,
+        timestamp: c.timestamp
+      }));
 
       const closes = candles.map(c => c.close);
       const highs = candles.map(c => c.high);
@@ -1710,40 +1869,61 @@ function App() {
     setScannerLoading(true);
     setScannerResults([]);
     
-    // Top 10 coins to scan
+    // Top 10 coins to scan (Upbit API Migration)
     const scannerCoins = [
-      { id: 'bitcoin', symbol: 'btc', name: 'Bitcoin' },
-      { id: 'ethereum', symbol: 'eth', name: 'Ethereum' },
-      { id: 'solana', symbol: 'sol', name: 'Solana' },
-      { id: 'ripple', symbol: 'xrp', name: 'Ripple' },
-      { id: 'dogecoin', symbol: 'doge', name: 'Dogecoin' },
-      { id: 'cardano', symbol: 'ada', name: 'Cardano' },
-      { id: 'polkadot', symbol: 'dot', name: 'Polkadot' },
-      { id: 'avalanche-2', symbol: 'avax', name: 'Avalanche' },
-      { id: 'chainlink', symbol: 'link', name: 'Chainlink' },
-      { id: 'tron', symbol: 'trx', name: 'Tron' }
+      { id: 'KRW-BTC', symbol: 'btc', name: '비트코인' },
+      { id: 'KRW-ETH', symbol: 'eth', name: '이더리움' },
+      { id: 'KRW-SOL', symbol: 'sol', name: '솔라나' },
+      { id: 'KRW-XRP', symbol: 'xrp', name: '리플' },
+      { id: 'KRW-DOGE', symbol: 'doge', name: '도지코인' },
+      { id: 'KRW-ADA', symbol: 'ada', name: '에이다' },
+      { id: 'KRW-DOT', symbol: 'dot', name: '폴카닷' },
+      { id: 'KRW-AVAX', symbol: 'avax', name: '아발란체' },
+      { id: 'KRW-LINK', symbol: 'link', name: '체인링크' },
+      { id: 'KRW-TRX', symbol: 'trx', name: '트론' }
     ];
 
     try {
       const results = await Promise.all(scannerCoins.map(async (coin) => {
         try {
-          let apiDays = '30';
-          if (['5m', '15m', '30m'].includes(backtestTimeframe)) {
-            apiDays = '1';
-          }
+          let candleUrl = '';
+          const count = 100; // 스캔에 필요한 캔들 수
+          const tf = backtestTimeframe.toLowerCase();
           
-          const chartData = await fetchWithCache(
-            `https://api.coingecko.com/api/v3/coins/${coin.id}/market_chart?vs_currency=${currency}&days=${apiDays}&x_cg_demo_api_key=${coingeckoApiKey}`,
-            `backtestChart_${coin.id}_${currency}_${apiDays}`,
-            3600 // 1 hour cache
+          if (tf === '5m') {
+            candleUrl = `https://api.upbit.com/v1/candles/minutes/5?market=${coin.id}&count=${count}`;
+          } else if (tf === '15m') {
+            candleUrl = `https://api.upbit.com/v1/candles/minutes/15?market=${coin.id}&count=${count}`;
+          } else if (tf === '30m') {
+            candleUrl = `https://api.upbit.com/v1/candles/minutes/30?market=${coin.id}&count=${count}`;
+          } else if (tf === '1h' || tf === '1h') {
+            candleUrl = `https://api.upbit.com/v1/candles/minutes/60?market=${coin.id}&count=${count}`;
+          } else if (tf === '4h' || tf === '4h') {
+            candleUrl = `https://api.upbit.com/v1/candles/minutes/240?market=${coin.id}&count=${count}`;
+          } else if (tf === '1w') {
+            candleUrl = `https://api.upbit.com/v1/candles/weeks?market=${coin.id}&count=${count}`;
+          } else {
+            candleUrl = `https://api.upbit.com/v1/candles/days?market=${coin.id}&count=${count}`;
+          }
+
+          const rawCandles = await fetchWithCache(
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(candleUrl)}`,
+            `scannerCandles_${coin.id}_${backtestTimeframe}`,
+            900 // 15분 캐시
           );
           
-          const rawPrices = chartData.prices;
-          const rawVolumes = chartData.total_volumes;
-          if (!rawPrices || rawPrices.length < 30) return null;
+          if (!rawCandles || rawCandles.length < 20) return null;
 
-          const candles = resampleToCandles(rawPrices, rawVolumes, backtestTimeframe);
-          if (candles.length < 20) return null;
+          // 시간순(과거->현재) 정렬 및 변환
+          const candles = rawCandles.slice().reverse().map(c => ({
+            time: c.candle_date_time_kst || c.candle_date_time_utc,
+            open: c.opening_price,
+            high: c.high_price,
+            low: c.low_price,
+            close: c.trade_price,
+            volume: c.candle_acc_trade_volume,
+            timestamp: c.timestamp
+          }));
 
           const closes = candles.map(c => c.close);
           
