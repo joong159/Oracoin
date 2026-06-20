@@ -762,7 +762,8 @@ function App() {
         if (cached) {
           try {
             const { date, data } = JSON.parse(cached);
-            if (date === todayStr) {
+            // 데이터가 존재하고 비어있지 않을 때만 캐시를 리턴합니다.
+            if (date === todayStr && data && data.length > 0) {
               setAllCoins(data);
               return;
             }
@@ -773,7 +774,7 @@ function App() {
 
         // 업비트 마켓 목록 로드 (CORS 직접 호출)
         const marketRes = await fetch('https://api.upbit.com/v1/market/all?isDetails=false');
-        if (!marketRes.ok) throw new Error('Failed to fetch Upbit markets');
+        if (!marketRes.ok) throw new Error(`업비트 마켓 목록 fetch 실패 (Status: ${marketRes.status})`);
         const markets = await marketRes.json();
         
         // 원화 마켓만 필터링
@@ -782,7 +783,7 @@ function App() {
 
         // 티커 시세 로드 (CORS 직접 호출)
         const tickerRes = await fetch('https://api.upbit.com/v1/ticker?markets=' + codes);
-        if (!tickerRes.ok) throw new Error('Failed to fetch Upbit tickers');
+        if (!tickerRes.ok) throw new Error(`업비트 티커 시세 fetch 실패 (Status: ${tickerRes.status})`);
         const tickers = await tickerRes.json();
 
         // 코인게코 포맷에 맞춰 데이터 매핑 (UI 코드 변경 방지)
@@ -808,6 +809,7 @@ function App() {
         localStorage.setItem(cacheKey, JSON.stringify({ date: todayStr, data: sortedCoins }));
       } catch (error) {
         console.error("사이드바 코인 목록 로딩 실패:", error);
+        alert(`사이드바 로딩 실패: ${error.message}\n(인터넷 연결 혹은 Adblock 등의 확장 프로그램이 upbit.com 주소를 차단하고 있는지 확인해 주세요.)`);
       }
     };
 
@@ -881,6 +883,7 @@ function App() {
         setDisplayedCoins(completedData);
       } catch (error) {
         console.error("데이터 로딩 실패:", error);
+        alert(`메인 데이터 로딩 실패: ${error.message}`);
       } finally {
         setLoadingCoins(false);
       }
