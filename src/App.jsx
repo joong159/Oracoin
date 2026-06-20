@@ -771,8 +771,8 @@ function App() {
           }
         }
 
-        // 업비트 마켓 목록 로드 (CORS 프록시 적용)
-        const marketRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/market/all?isDetails=false')}`);
+        // 업비트 마켓 목록 로드 (CORS 직접 호출)
+        const marketRes = await fetch('https://api.upbit.com/v1/market/all?isDetails=false');
         if (!marketRes.ok) throw new Error('Failed to fetch Upbit markets');
         const markets = await marketRes.json();
         
@@ -780,8 +780,8 @@ function App() {
         const krwMarkets = markets.filter(m => m.market.startsWith('KRW-'));
         const codes = krwMarkets.map(m => m.market).join(',');
 
-        // 티커 시세 로드
-        const tickerRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/ticker?markets=' + codes)}`);
+        // 티커 시세 로드 (CORS 직접 호출)
+        const tickerRes = await fetch('https://api.upbit.com/v1/ticker?markets=' + codes);
         if (!tickerRes.ok) throw new Error('Failed to fetch Upbit tickers');
         const tickers = await tickerRes.json();
 
@@ -825,17 +825,17 @@ function App() {
       try {
         const ids = selectedCoinIds.join(',');
         
-        // 업비트 티커 시세 로드
+        // 업비트 티커 시세 로드 (CORS 직접 호출)
         const marketData = await fetchWithCache(
-          `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/ticker?markets=' + ids)}`,
+          `https://api.upbit.com/v1/ticker?markets=${ids}`,
           `marketData_${ids}_upbit`,
           10 // 10초 캐시
         );
 
-        // 전체 마켓 코드 및 한글명 매핑용 정보
+        // 전체 마켓 코드 및 한글명 매핑용 정보 (CORS 직접 호출)
         const allMarketRes = await fetchWithCache(
-          `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.upbit.com/v1/market/all?isDetails=false')}`,
-          `allMarketsList`,
+          'https://api.upbit.com/v1/market/all?isDetails=false',
+          'allMarketsList',
           86400 // 24시간 캐시
         );
 
@@ -856,9 +856,9 @@ function App() {
           };
 
           try {
-            // 과거 30일 시세 캔들 로드
+            // 과거 30일 시세 캔들 로드 (CORS 직접 호출)
             const chartData = await fetchWithCache(
-              `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.upbit.com/v1/candles/days?market=${coinId}&count=30`)}`,
+              `https://api.upbit.com/v1/candles/days?market=${coinId}&count=30`,
               `coinChart_30d_${coinId}`,
               3600 // 1시간 캐시
             );
@@ -1261,7 +1261,7 @@ function App() {
         };
 
         const chartData = await fetchWithCache(
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.upbit.com/v1/candles/days?market=${selectedModalCoinId}&count=${modalRange}`)}`,
+          `https://api.upbit.com/v1/candles/days?market=${selectedModalCoinId}&count=${modalRange}`,
           `modalChart_${selectedModalCoinId}_upbit_${modalRange}`,
           900 // 15분 캐시
         );
@@ -1641,7 +1641,7 @@ function App() {
       }
 
       const rawCandles = await fetchWithCache(
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(candleUrl)}`,
+        candleUrl,
         `backtestCandles_${backtestCoin}_${backtestTimeframe}_${count}`,
         3600 // 1시간 캐시
       );
@@ -1907,7 +1907,7 @@ function App() {
           }
 
           const rawCandles = await fetchWithCache(
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(candleUrl)}`,
+            candleUrl,
             `scannerCandles_${coin.id}_${backtestTimeframe}`,
             900 // 15분 캐시
           );
