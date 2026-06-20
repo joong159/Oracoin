@@ -2354,7 +2354,7 @@ function App() {
                 )}
 
                 {/* Home Top Leaderboard Ad */}
-                <KakaoAd adUnit="DAN-hOXhpahZIAZzl6e5" width="728" height="90" />
+                <KakaoAd adUnit="DAN-qfq0xsFo8mOaufgN" width="728" height="90" />
 
                 {/* Search & Filters */}
                 <div className="toolbar glass-panel">
