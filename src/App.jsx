@@ -606,7 +606,17 @@ function App() {
           const docSnap = await getDoc(userDocRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data.selectedCoinIds) setSelectedCoinIds(data.selectedCoinIds);
+            if (data.selectedCoinIds) {
+              const isValid = data.selectedCoinIds.length > 0 && data.selectedCoinIds.every(id => id.startsWith('KRW-'));
+              if (isValid) {
+                setSelectedCoinIds(data.selectedCoinIds);
+              } else {
+                console.warn("Firestore에 구형 코인게코 ID 검출됨. 업비트 규격으로 복구 중...");
+                const defaultList = ['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-DOGE', 'KRW-SOL', 'KRW-ADA'];
+                setSelectedCoinIds(defaultList);
+                await setDoc(userDocRef, { selectedCoinIds: defaultList }, { merge: true });
+              }
+            }
             if (data.favorites) setFavorites(data.favorites);
           }
         } catch (error) {
@@ -633,8 +643,19 @@ function App() {
     if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
     
     const savedSelectedCoins = localStorage.getItem('selectedCoinIds');
-    if (savedSelectedCoins && JSON.parse(savedSelectedCoins).length > 0) {
-      setSelectedCoinIds(JSON.parse(savedSelectedCoins));
+    if (savedSelectedCoins) {
+      try {
+        const parsed = JSON.parse(savedSelectedCoins);
+        const isValid = parsed.length > 0 && parsed.every(id => id.startsWith('KRW-'));
+        if (isValid) {
+          setSelectedCoinIds(parsed);
+        } else {
+          console.warn("로컬 스토리지에 구형 코인게코 ID 검출됨. 초기화 진행...");
+          localStorage.removeItem('selectedCoinIds');
+        }
+      } catch (e) {
+        console.warn("로컬 코인 목록 파싱 실패:", e);
+      }
     }
   };
 
