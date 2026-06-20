@@ -846,6 +846,12 @@ function App() {
           10 // 10초 캐시
         );
 
+        if (!marketData || !Array.isArray(marketData)) {
+          console.warn("티커 데이터를 로드할 수 없거나 형식이 배열이 아닙니다.");
+          setDisplayedCoins([]);
+          return;
+        }
+
         // 2. 전체 마켓 정보 로드
         const allMarketRes = await fetchWithCache(
           'https://api.upbit.com/v1/market/all?isDetails=false',
@@ -853,12 +859,24 @@ function App() {
           86400 // 24시간 캐시
         );
 
+        if (!allMarketRes || !Array.isArray(allMarketRes)) {
+          console.warn("전체 마켓 정보 리스트를 로드할 수 없거나 형식이 배열이 아닙니다.");
+          setDisplayedCoins([]);
+          return;
+        }
+
         // 💡 429 Too Many Requests 방지를 위해 6개 코인의 과거 차트 데이터를 순차적으로 로드(Throttling)합니다.
         const completedData = [];
 
         for (const ticker of marketData) {
+          if (!ticker || !ticker.market) {
+            console.warn("비정상적인 티커 객체 발견:", ticker);
+            continue;
+          }
           const coinId = ticker.market;
           const symbol = coinId.split('-')[1];
+          if (!symbol) continue;
+          
           const marketInfo = allMarketRes.find(m => m.market === coinId);
 
           const coin = {
@@ -880,12 +898,16 @@ function App() {
               3600 // 1시간 캐시
             );
             
-            const prices = chartData.slice().reverse().map(c => c.trade_price);
-            const rsi = calculateRSI(prices.slice(-15));
-            const ma_20 = prices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(prices.length, 20);
-            const ma_20_day_comparison = coin.current_price > ma_20 ? 'above' : 'below';
+            if (chartData && Array.isArray(chartData) && chartData.length > 0) {
+              const prices = chartData.slice().reverse().map(c => c.trade_price);
+              const rsi = calculateRSI(prices.slice(-15));
+              const ma_20 = prices.slice(-20).reduce((a, b) => a + b, 0) / Math.min(prices.length, 20);
+              const ma_20_day_comparison = coin.current_price > ma_20 ? 'above' : 'below';
 
-            completedData.push({ ...coin, rsi, ma_20_day_comparison });
+              completedData.push({ ...coin, rsi, ma_20_day_comparison });
+            } else {
+              completedData.push({ ...coin, rsi: 50, ma_20_day_comparison: 'neutral' });
+            }
           } catch (err) {
             console.error(`${coinId} 차트 데이터 획득 실패:`, err);
             completedData.push({ ...coin, rsi: 50, ma_20_day_comparison: 'neutral' });
